@@ -23,6 +23,7 @@
 *.ko
 *.obj
 *.elf
+*.iex
 
 # Precompiled Headers
 *.gch
