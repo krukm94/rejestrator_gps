@@ -724,11 +724,13 @@ HAL_StatusTypeDef USB_EP0StartXfer(USB_OTG_GlobalTypeDef *USBx , USB_OTG_EPTypeD
   */
 HAL_StatusTypeDef USB_WritePacket(USB_OTG_GlobalTypeDef *USBx, uint8_t *src, uint8_t ch_ep_num, uint16_t len, uint8_t dma)
 {
+  uint32_t count32b= 0 , index= 0;
+	
   /* Prevent unused argument(s) compilation warning */
   UNUSED(USBx);
   UNUSED(dma);
   
-  uint32_t count32b= 0 , index= 0;
+  
   count32b =  (len + 3) / 4;
   for (index = 0; index < count32b; index++, src += 4)
   {

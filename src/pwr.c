@@ -33,10 +33,10 @@ void pwrInit(void)
 	LL_GPIO_ResetOutputPin(PWR_PORT , PWR_NCE_PIN);
 	
 	//Nvic settings
-	HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(EXTI0_IRQn, 3, 1);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 3, 1);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 	
 	serviceUartWriteS("\n\r#PWR INIT OK");

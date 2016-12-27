@@ -5,6 +5,7 @@
 #include "main.h"
 
 
+
 int main(void){
 
 	HAL_Init();
@@ -13,6 +14,7 @@ int main(void){
 
 	while(1){	
 		
+
 	}
 }
 

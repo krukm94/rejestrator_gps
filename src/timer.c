@@ -8,6 +8,7 @@
 TIM_HandleTypeDef			tim3;
 
 uint8_t led_cnt = 0; 
+int16_t x,y,z;
 
 //tim_3_init
 void tim_3_init(void){
@@ -39,9 +40,11 @@ void TIM3_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&tim3, TIM_SR_UIF))
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim3, TIM_SR_UIF);	
-
+		
+		
 		led_cnt++;
 		ledOff(3);
+		if(!(led_cnt % 5)) bmi160ReadAcc(&x,&y,&z);
 		if(!(led_cnt % 20)) ledOn(3);	
 		
 	}

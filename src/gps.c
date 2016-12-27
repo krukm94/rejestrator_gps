@@ -30,37 +30,68 @@ void gpsUartInit(void)
 	//TX & RX
 	gpio.Pin = GPS_UART_TX_PIN;
 	gpio.Mode = GPIO_MODE_AF_PP;
-	gpio.Pull = GPIO_NOPULL;
-	gpio.Speed = GPIO_SPEED_FAST;
+	gpio.Pull = GPIO_PULLUP;
+	gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	gpio.Alternate = GPIO_AF8_UART4;
 	HAL_GPIO_Init(GPS_UART_TX_PORT , &gpio);
 	
 	gpio.Pin = GPS_UART_RX_PIN;
+	gpio.Mode = GPIO_MODE_AF_PP;
+	gpio.Pull = GPIO_PULLUP;
+	gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	gpio.Alternate = GPIO_AF8_UART4;
 	HAL_GPIO_Init(GPS_UART_RX_PORT , &gpio);
+	
+	//PPS 
+	gpio.Pin = GPS_PPS_PIN;
+	gpio.Mode = GPIO_MODE_IT_RISING;
+	gpio.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPS_PPS_PORT , &gpio);
+	
+	//Interrupt for PPS pin
+	//Nvic settings
+	HAL_NVIC_SetPriority(EXTI1_IRQn, 3, 2);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 	
 	gps_uart.Instance = GPS_UART_INSTANCE;
 	gps_uart.Init.BaudRate = GPS_UART_BAUDRATE;
 	gps_uart.Init.StopBits = UART_STOPBITS_1;
 	gps_uart.Init.Parity = UART_PARITY_NONE;
 	gps_uart.Init.Mode = UART_MODE_TX_RX;
+	gps_uart.Init.WordLength = UART_WORDLENGTH_8B;
+	gps_uart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	gps_uart.Init.OverSampling = UART_OVERSAMPLING_16;
+	gps_uart.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED;
 	
 	if(HAL_UART_Init(&gps_uart))
 	{
 		errorFunc("\n\r#error:gps_uart.c(36):HAL_UART_Init");
 	}
 	
-	NVIC_SetPriority(GPS_IRQn_NAME, 2);
-	NVIC_EnableIRQ(GPS_IRQn_NAME);
-	
-	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
-	
 	__HAL_UART_ENABLE(&gps_uart);
+		
+	serviceUartWriteS("\n\r#GPS UART INIT OK");
+	
+	HAL_NVIC_SetPriority(GPS_UART_IRQn_NAME, 2, 3);
+  HAL_NVIC_EnableIRQ(GPS_UART_IRQn_NAME);
 	
 	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
 	
-	serviceUartWriteS("\n\r#GPS UART INIT OK");
+	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
+	//gpsUartWriteS("$PMTK251,38400*27\r\n");
 }
 
+//EXTI1
+void EXTI1_IRQHandler(void)
+{
+	if(__HAL_GPIO_EXTI_GET_IT(GPS_PPS_PIN) != RESET)
+  {
+		__HAL_GPIO_EXTI_CLEAR_IT(GPS_PPS_PIN);
+		
+	}
+}
+
+//UART4_IRQHandler
 void UART4_IRQHandler(void)
 {		
 		if(GPS_UART_INSTANCE -> ISR & UART_FLAG_RXNE){
@@ -68,6 +99,25 @@ void UART4_IRQHandler(void)
 			//gpsUartOdczyt(usart1_rx);
 			//serviceUartWrite(GPS_UART_INSTANCE -> RDR);
 		}
+}
+
+//gpsUartWrite
+void gpsUartWrite(char data)
+{	
+	while(!(__HAL_UART_GET_FLAG(&gps_uart, UART_FLAG_TXE)));	
+	GPS_UART_INSTANCE ->TDR = data;
+}
+
+//gpsUartWriteS
+void gpsUartWriteS(char *s)
+{
+	while(*s)
+	{
+		while(!(__HAL_UART_GET_FLAG(&gps_uart, UART_FLAG_TC)));
+		gpsUartWrite(*s++);
+		
+		
+	}
 }
 
 //void gpsUartOdczyt(uint8_t rx){

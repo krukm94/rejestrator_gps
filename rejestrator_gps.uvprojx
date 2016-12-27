@@ -51,7 +51,7 @@
           <OutputName>rejestrator_gps</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
-          <CreateHexFile>0</CreateHexFile>
+          <CreateHexFile>1</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
           <ListingPath>.\Listings\</ListingPath>
@@ -335,7 +335,7 @@
               <MiscControls></MiscControls>
               <Define>STM32L476xx,USE_HAL_DRIVER,USE_STM32L4XX_NUCLEO,STM32L4_NUCLEO</Define>
               <Undefine></Undefine>
-              <IncludePath>.\lib;.\lib\cmsis;.\lib\hal\Inc;.\lib\hal\Inc\Legacy;.\src;.\lib\hal\Src</IncludePath>
+              <IncludePath>.\lib;.\lib\cmsis;.\lib\hal\Inc;.\lib\hal\Inc\Legacy;.\src;.\lib\hal\Src;.\lib\usb_dev\core\Inc;.\lib\usb_dev\class\Inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -443,6 +443,26 @@
               <FileName>bmi160.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\bmi160.c</FilePath>
+            </File>
+            <File>
+              <FileName>usb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\usb.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_desc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\usbd_desc.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_conf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\usbd_conf.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_storage_if.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\usbd_storage_if.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -568,6 +588,76 @@
               <FileName>stm32l4xx_ll_spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\lib\hal\Src\stm32l4xx_ll_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_hal_pcd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_hal_pcd.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_hal_pcd_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_hal_pcd_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_ll_usb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_ll_usb.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_hal_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_hal_flash.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_hal_flash_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_hal_flash_ex.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32l4xx_hal_flash_ramfunc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_hal_flash_ramfunc.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>usb_dev</GroupName>
+          <Files>
+            <File>
+              <FileName>usbd_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\core\Src\usbd_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_ioreq.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\core\Src\usbd_ioreq.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_ctlreq.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\core\Src\usbd_ctlreq.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_msc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\class\Src\usbd_msc.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_msc_bot.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\class\Src\usbd_msc_bot.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_msc_data.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\class\Src\usbd_msc_data.c</FilePath>
+            </File>
+            <File>
+              <FileName>usbd_msc_scsi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\usb_dev\class\Src\usbd_msc_scsi.c</FilePath>
             </File>
           </Files>
         </Group>
