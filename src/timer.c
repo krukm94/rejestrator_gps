@@ -45,8 +45,11 @@ void TIM3_IRQHandler(void)
 		led_cnt++;
 		ledOff(3);
 		if(!(led_cnt % 5)) bmi160ReadAcc(&x,&y,&z);
-		if(!(led_cnt % 20)) ledOn(3);	
-		
+		if(!(led_cnt % 20)) 
+		{
+			ledOn(3);	
+			ledOff(1);
+		}
 	}
 
 }

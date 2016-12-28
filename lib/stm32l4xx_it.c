@@ -168,6 +168,53 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE END OTG_FS_IRQn 1 */
 }
 
+//EXTI0 
+void EXTI0_IRQHandler(void)
+{
+	if(__HAL_GPIO_EXTI_GET_IT(PWR_NCH_PIN) != RESET)
+  {
+		__HAL_GPIO_EXTI_CLEAR_IT(PWR_NCH_PIN);
+		ledOff(1);
+		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NCH_PIN))
+		{
+			ledOn(1);
+		}
+	}
+}
+
+//EXTI2
+void EXTI2_IRQHandler(void)
+{
+//	}
+	if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_2) != RESET)
+	{
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
+		
+		//NPGOOD = GOOD RANGE OF VUSB
+		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NPGOOD_PIN))
+		{
+			ledOn(4);
+			serviceUartWriteS("\r\n#NPGOOD_PIN (PB2) INTERRUPT");
+		}
+		
+		//BMI160 INTERRUPT PIN 1
+		if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
+		{
+			ledOn(1);
+		}
+	}
+}
+
+//EXTI4 
+void EXTI4_IRQHandler(void)
+{
+	if(__HAL_GPIO_EXTI_GET_IT(BMI160_INT2) != RESET)
+  {
+		__HAL_GPIO_EXTI_CLEAR_IT(BMI160_INT2);
+		ledOn(4);
+
+	}
+}
 /******************************************************************************/
 /*                 STM32L4xx Peripherals Interrupt Handlers                   */
 /*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */

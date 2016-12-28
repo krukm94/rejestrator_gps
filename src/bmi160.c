@@ -38,6 +38,18 @@ void bmi160Init(void)
 	__HAL_RCC_SPI1_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	
+	gpio.Pin				= BMI160_INT1;
+	gpio.Mode				= GPIO_MODE_IT_RISING_FALLING;
+	gpio.Pull 			= GPIO_PULLUP;
+	HAL_GPIO_Init(BMI160_PORT , &gpio);
+	
+	gpio.Pin				= BMI160_INT2;
+	gpio.Mode				= GPIO_MODE_IT_RISING_FALLING;
+	gpio.Pull 			= GPIO_PULLUP;
+	HAL_GPIO_Init(BMI160_PORT , &gpio);
+	
+	HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 4);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 	gpio.Alternate 	= GPIO_AF5_SPI1;
 	gpio.Pin 				= BMI160_MISO;
@@ -90,9 +102,21 @@ void bmi160Init(void)
 	
 	HAL_Delay(5);
 	
+	//set acc range
+	setAccRange(8);
+	
+	//set AnyMotionInterrupt
+	setAnyMotionInt();
+	
+	//set Significant motion interrupt
+	//setSigMotionInt();
+	
+	//set no motion interrupt
+	//setNoMotionInt();
+	
 	//Read CHIP ID REG
 	bmi160Read(BMI160_CHIP_ID , &read , 1);
-	sprintf(print , "\n\r#SPI1(BMI160) INIT OK CHIP_ID: 0x%X " , read);
+	sprintf(print , "\n\r#SPI1(BMI160) INIT OK CHIP_ID: 0x%0.2X " , read);
 	
 	serviceUartWriteS(print);
 	
@@ -107,22 +131,22 @@ void bmi160Init(void)
 	}
 	
 	bmi160Read(BMI160_ERR , &read , 1);
-	sprintf(print , "\n\r--->ERR: 0x%X , cnt:%d" , read ,cnt);
+	sprintf(print , "\n\r--->ERR: 0x%0.2X , cnt:%d" , read ,cnt);
 	serviceUartWriteS(print);
 	
 	bmi160Read(BMI160_PMU_STATUS , &read , 1);
-	sprintf(print , "\n\r--->STATUS PMU: 0x%X " , read);
+	sprintf(print , "\n\r--->STATUS PMU: 0x%0.2X " , read);
 	serviceUartWriteS(print);
 	
 	bmi160Read(BMI160_STATUS , &read , 1);
-	sprintf(print , "\n\r--->STATUS: 0x%X " , read);
+	sprintf(print , "\n\r--->STATUS: 0x%0.2X " , read);
 	serviceUartWriteS(print);
 	
 	bmi160Read(BMI160_ACC_CONF , &read , 1);
-	sprintf(print , "\n\r--->ACC CONF: 0x%X " , read);
+	sprintf(print , "\n\r--->ACC CONF: 0x%0.2X " , read);
 	serviceUartWriteS(print);
 
-	setAccRange(8);
+	
 }
 
 //bmiRead
@@ -195,6 +219,7 @@ void setAccRange(uint8_t lsb)
 //bmi160ReadAcc
 void bmi160ReadAcc(int16_t *acc_x , int16_t *acc_y , int16_t *acc_z)
 {
+	uint8_t read, read1 , read2;
 	bmi160Read( BMI160_ACC_X , acc_buf , 6);
 	
 	acc.acc_x = (acc_buf[1] << 8) | acc_buf[0];
@@ -207,10 +232,105 @@ void bmi160ReadAcc(int16_t *acc_x , int16_t *acc_y , int16_t *acc_z)
 	
 	acc.acc_g = (float)sqrt(X*X + Y*Y + Z*Z);
 	
-	sprintf(print_acc, "\n\rX: %f [g], Y: %f [g], Z: %f [g] , G: %f [g]", X , Y , Z , acc.acc_g);
+	bmi160Read(BMI160_INT_STATUS0 , &read , 1);
+	bmi160Read(BMI160_INT_STATUS1 , &read1 , 1);
+	bmi160Read(BMI160_INT_STATUS2 , &read2 , 1);
+	
+	sprintf(print_acc,
+	"\n\rX: %f [g], Y: %f [g], Z: %f [g] , G: %f [g] , INT0: 0x%0.2X  , INT1: 0x%0.2X , INT2: 0x%0.2X", 
+	X , Y , Z , acc.acc_g , read, read1 , read2);
+	
 	serviceUartWriteS(print_acc);
 }
 
+//setSigMotionInt
+void setSigMotionInt(void)
+{
+	uint8_t int_motion3 	= 0x16;
+
+	uint8_t int_map0 			= 0x04;
+	uint8_t	int_out_ctrl 	= 0x08;
+	uint8_t int_en 				= 0x07;
+	uint8_t int_latch   	= 0x1C;
+	
+	//set siginificant motion interrupt enable
+	bmi160Write(BMI160_INT_MOTION3 , &int_motion3 , 1);
+	
+	//map siginificant motion to INT 1 pin
+	bmi160Write(BMI160_INT_MAP0 , &int_map0 , 1);
+	
+	//set INT1 Pin output
+	bmi160Write(BMI160_INT_OUT_CTRL , &int_out_ctrl , 1);
+	
+	//zatrzask na 500 ms
+	bmi160Write(BMI160_INT_LATCH , &int_latch , 1);
+	
+	//set INT eN
+	bmi160Write(BMI160_INT_EN2 , &int_en , 1);
+}
+
+void setAnyMotionInt(void)
+{
+	uint8_t int_motion1 = 0x60;
+	uint8_t int_ctrl 		= 0x08;
+	uint8_t int_en0			= 0x07;
+	uint8_t int_map0		= 0x04;
+	uint8_t int_latch   = 0x1C;
+	
+	uint8_t read;
+	char print[30];
+	
+	//set ant motion int config
+	bmi160Write(BMI160_INT_MOTION1 , &int_motion1 , 1);
+	
+	//ustawienie wyjscia
+	bmi160Write(BMI160_INT_OUT_CTRL, &int_ctrl ,1);
+
+	//zmapownaie int do int 1 pin
+	bmi160Write(BMI160_INT_MAP0 , &int_map0 , 1);
+	
+	//zatrzask na 500 ms
+	bmi160Write(BMI160_INT_LATCH , &int_latch , 1);
+	
+	//uruchomienie przerwania
+	bmi160Write(BMI160_INT_EN0 , &int_en0 , 1);
+	
+}
+
+//setNoMotionInterrupt
+void setNoMotionInt(void)
+{
+	uint8_t motion0 = 0x04;
+	uint8_t motion2 = 0x46;
+	uint8_t motion3 = 0x01;
+	uint8_t ctrl    = 0x08;
+	uint8_t latch   = 0x2C;
+	uint8_t map0    = 0x08;
+	uint8_t en2     = 0x07;
+	
+	//set time of no motion
+	bmi160Write(BMI160_INT_MOTION0 , &motion0 , 1);
+	
+	//set threshould of no motion
+	bmi160Write(BMI160_INT_MOTION2 , &motion2 , 1);
+	
+	//set no motion on
+	bmi160Write(BMI160_INT_MOTION3 , &motion3 , 1);
+	
+	//set output for INT2
+	bmi160Write(BMI160_INT_OUT_CTRL , &ctrl , 1);
+	
+	//set latch for interrupt
+	bmi160Write(BMI160_INT_LATCH , &latch , 1);
+	
+	//set maping fot int 2
+	bmi160Write(BMI160_INT_MAP0 , &map0 , 1);
+	
+	//set no motion interrup enable
+	bmi160Write(BMI160_INT_EN2 , &en2 , 1);
+	
+	
+}
 //END OF FILE
 
 

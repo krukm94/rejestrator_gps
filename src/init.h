@@ -85,6 +85,7 @@ void errorFunc(char *error_massage);
 #define BMI160_INT1					GPIO_PIN_2
 #define BMI160_INT2					GPIO_PIN_4
 
+
 #define LPS25_SPI_INSTANCE 	SPI3
 #define LPS25_PORT					GPIOB
 

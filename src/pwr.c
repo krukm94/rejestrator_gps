@@ -43,30 +43,4 @@ void pwrInit(void)
 	
 }
 
-//EXTI0 
-void EXTI0_IRQHandler(void)
-{
-	if(__HAL_GPIO_EXTI_GET_IT(PWR_NCH_PIN) != RESET)
-  {
-		__HAL_GPIO_EXTI_CLEAR_IT(PWR_NCH_PIN);
-		ledOff(1);
-		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NCH_PIN))
-		{
-			ledOn(1);
-		}
-	}
-}
 
-//EXTI2
-void EXTI2_IRQHandler(void)
-{
-	if(__HAL_GPIO_EXTI_GET_IT(PWR_NPGOOD_PIN) != RESET)
-  {
-		__HAL_GPIO_EXTI_CLEAR_IT(PWR_NPGOOD_PIN);
-		ledOff(4);
-		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NPGOOD_PIN))
-		{
-			ledOn(4);
-		}
-	}
-}
