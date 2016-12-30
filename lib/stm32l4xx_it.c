@@ -55,6 +55,9 @@
 /* Private variables ---------------------------------------------------------*/
 extern volatile uint32_t system_cnt;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
+volatile uint8_t wakeup;
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -200,7 +203,13 @@ void EXTI2_IRQHandler(void)
 		//BMI160 INTERRUPT PIN 1
 		if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
 		{
-			ledOn(1);
+			if(__HAL_PWR_GET_FLAG(PWR_FLAG_WUF4)) serviceUartWriteS("\r\nWUF4");
+			if(!wakeup)
+			{
+				SystemClock_Config();
+			}
+			wakeup++;;
+		ledOn(1);
 		}
 	}
 }

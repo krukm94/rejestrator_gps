@@ -49,6 +49,9 @@ void init(void)
 	//MX_USB_DEVICE_Init();
 	
 	tim_3_init();
+	
+	HAL_Delay(2000);
+	StandByMode();
 
 }
 
@@ -76,7 +79,7 @@ void SystemClock_Config(void)
 	
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    errorFunc("\n\rinit.c(59):HAL_RCC_OscConfig");
+    errorFunc("\n\r#error:init.c(59):HAL_RCC_OscConfig");
   }
 
     /**Initializes the CPU, AHB and APB busses clocks 

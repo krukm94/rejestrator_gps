@@ -49,6 +49,7 @@ void TIM3_IRQHandler(void)
 		{
 			ledOn(3);	
 			ledOff(1);
+			ledOff(4);
 		}
 	}
 

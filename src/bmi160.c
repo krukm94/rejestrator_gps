@@ -145,8 +145,6 @@ void bmi160Init(void)
 	bmi160Read(BMI160_ACC_CONF , &read , 1);
 	sprintf(print , "\n\r--->ACC CONF: 0x%0.2X " , read);
 	serviceUartWriteS(print);
-
-	
 }
 
 //bmiRead
@@ -277,9 +275,6 @@ void setAnyMotionInt(void)
 	uint8_t int_map0		= 0x04;
 	uint8_t int_latch   = 0x1C;
 	
-	uint8_t read;
-	char print[30];
-	
 	//set ant motion int config
 	bmi160Write(BMI160_INT_MOTION1 , &int_motion1 , 1);
 	
@@ -294,7 +289,6 @@ void setAnyMotionInt(void)
 	
 	//uruchomienie przerwania
 	bmi160Write(BMI160_INT_EN0 , &int_en0 , 1);
-	
 }
 
 //setNoMotionInterrupt
@@ -328,8 +322,6 @@ void setNoMotionInt(void)
 	
 	//set no motion interrup enable
 	bmi160Write(BMI160_INT_EN2 , &en2 , 1);
-	
-	
 }
 //END OF FILE
 
