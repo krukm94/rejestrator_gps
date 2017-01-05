@@ -5,9 +5,18 @@
 
 #include "sd_card.h"
 
+//----------------------------------------------
+//HANDLES
 SD_HandleTypeDef sd1;
 HAL_SD_CardInfoTypedef SDCardInfo1;
 
+
+/**
+  * @brief  Initializes the SD card device.
+  * @param  None
+  * @retval SD status
+  */
+	
 uint8_t sdCardInit(void)
 {
 	uint8_t return_sd = SD_OK;

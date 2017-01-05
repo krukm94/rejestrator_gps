@@ -4,7 +4,6 @@
 
 #include "service_uart.h"
 
-
 UART_HandleTypeDef  service_uart;
 
 //serviceUartInit

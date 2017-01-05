@@ -27,21 +27,17 @@ void errorFunc(char *s)
 //init
 void init(void)
 {
-	
 	SystemClock_Config();	
 	
 	serviceUartInit();
 	serviceUartWriteS("\n\r$$$$$$$$$$$$$\n\r\n\r-->REJESTRATOR GPS<--\n\r$ M.KRUK\n\r$ THIS IS SERVICE UART\n\r---------------------");
 	
-	//if(RCC -> CR & (1<<16)) serviceUartWriteS("\n\r#HSE ENABLE");
-	
 	gpioInit();
 
-	//gpsUartInit();
+	gpsUartInit();
 	
 	pwrInit();
 	
-	HAL_Delay(20);
 	bmi160Init();
 	
 	//sdCardInit();
@@ -50,8 +46,12 @@ void init(void)
 	
 	tim_3_init();
 	
-	HAL_Delay(2000);
-	StandByMode();
+	//Nvic settings
+	HAL_NVIC_SetPriority(EXTI0_IRQn, 3, 1);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 3, 1);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
 }
 
@@ -96,7 +96,7 @@ void SystemClock_Config(void)
     errorFunc("\n\r#error:init.c(73):HAL_RCC_ClockConfig");
   }
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_UART4
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_UART4
                               |RCC_PERIPHCLK_USB|RCC_PERIPHCLK_SDMMC1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;

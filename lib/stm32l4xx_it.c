@@ -56,7 +56,11 @@
 extern volatile uint32_t system_cnt;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-volatile uint8_t wakeup;
+extern TIM_HandleTypeDef		tim3;
+extern UART_HandleTypeDef 	service_uart;
+
+extern SD_HandleTypeDef 		uSdHandle;
+extern SD_CardInfo 					uSdCardInfo;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -146,6 +150,7 @@ void PendSV_Handler(void)
 {
 }
 
+
 /**
   * @brief  This function handles SysTick Handler.
   * @param  None
@@ -154,8 +159,10 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   HAL_IncTick();
+	HAL_SYSTICK_IRQHandler();
   system_cnt++;
 }
+
 
 /**
 * @brief This function handles USB OTG FS global interrupt.
@@ -171,7 +178,38 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE END OTG_FS_IRQn 1 */
 }
 
-//EXTI0 
+
+/**
+  * @brief  This function handles SDMMC1 Handler.
+  * @param  None
+  * @retval None
+  */
+void SDMMC1_IRQHandler(void)
+{
+	HAL_SD_IRQHandler(&uSdHandle);
+}
+
+
+/**
+* @brief This function handles DMA2 channel4 global interrupt.
+*/
+void DMA2_Channel4_IRQHandler(void)
+{
+	HAL_DMA_IRQHandler(uSdHandle.hdmarx);
+}
+
+
+/**
+* @brief This function handles DMA2 channel5 global interrupt.
+*/
+void DMA2_Channel5_IRQHandler(void)
+{
+	HAL_DMA_IRQHandler(uSdHandle.hdmatx); 
+}
+
+/**
+* @brief This function handes EXTI0 interrupt
+*/
 void EXTI0_IRQHandler(void)
 {
 	if(__HAL_GPIO_EXTI_GET_IT(PWR_NCH_PIN) != RESET)
@@ -185,34 +223,49 @@ void EXTI0_IRQHandler(void)
 	}
 }
 
+
 //EXTI2
 void EXTI2_IRQHandler(void)
 {
-//	}
-	if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_2) != RESET)
-	{
-		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
-		
-		//NPGOOD = GOOD RANGE OF VUSB
-		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NPGOOD_PIN))
-		{
-			ledOn(4);
-			serviceUartWriteS("\r\n#NPGOOD_PIN (PB2) INTERRUPT");
-		}
-		
-		//BMI160 INTERRUPT PIN 1
-		if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
-		{
-			if(__HAL_PWR_GET_FLAG(PWR_FLAG_WUF4)) serviceUartWriteS("\r\nWUF4");
-			if(!wakeup)
-			{
-				SystemClock_Config();
-			}
-			wakeup++;;
-		ledOn(1);
-		}
-	}
+	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
 }
+
+/**
+  * @brief  GPIO EXTI Callback function
+  * @param  GPIO_Pin
+  * @retval None
+*/
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	ledOn(1);
+	
+	if (GPIO_Pin == GPIO_PIN_9)
+  {  
+    HAL_PCDEx_BCD_VBUSDetect (&hpcd_USB_OTG_FS);
+  }	
+	
+	//NPGOOD LOW = GOOD RANGE OF VUSB
+	if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NPGOOD_PIN))
+	{
+		ledOn(4);
+		serviceUartWriteS("\r\n#NPGOOD_PIN (PB2) INTERRUPT");
+	}
+	
+	//BMI160 INTERRUPT PIN 1
+	if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
+	{
+		bmi160IntFunc();
+	}
+	
+	if(__HAL_PWR_GET_FLAG(PWR_FLAG_WUF4))
+	{
+		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF4);
+			
+		__HAL_TIM_ENABLE_IT(&tim3, TIM_IT_UPDATE);
+		__HAL_UART_ENABLE_IT(&service_uart , UART_IT_RXNE);
+	}	
+}
+
 
 //EXTI4 
 void EXTI4_IRQHandler(void)

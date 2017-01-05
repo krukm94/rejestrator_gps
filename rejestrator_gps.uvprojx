@@ -335,7 +335,7 @@
               <MiscControls></MiscControls>
               <Define>STM32L476xx,USE_HAL_DRIVER,USE_STM32L4XX_NUCLEO,STM32L4_NUCLEO</Define>
               <Undefine></Undefine>
-              <IncludePath>.\lib;.\lib\cmsis;.\lib\hal\Inc;.\lib\hal\Inc\Legacy;.\src;.\lib\hal\Src;.\lib\usb_dev\core\Inc;.\lib\usb_dev\class\Inc</IncludePath>
+              <IncludePath>.\lib;.\lib\cmsis;.\lib\hal\Inc;.\lib\hal\Inc\Legacy;.\src;.\lib\hal\Src;.\lib\usb_dev\core\Inc;.\lib\usb_dev\class\Inc;.\lib\FatFs</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -463,6 +463,11 @@
               <FileName>usbd_storage_if.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\usbd_storage_if.c</FilePath>
+            </File>
+            <File>
+              <FileName>AK_stm32_fatfs.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\AK_stm32_fatfs.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -619,6 +624,11 @@
               <FileType>1</FileType>
               <FilePath>.\lib\hal\Src\stm32l4xx_hal_flash_ramfunc.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32l4xx_ll_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\hal\Src\stm32l4xx_ll_dma.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -658,6 +668,36 @@
               <FileName>usbd_msc_scsi.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\lib\usb_dev\class\Src\usbd_msc_scsi.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>FatFs</GroupName>
+          <Files>
+            <File>
+              <FileName>diskio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\FatFs\diskio.c</FilePath>
+            </File>
+            <File>
+              <FileName>fatfs_sd_sdio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\FatFs\fatfs_sd_sdio.c</FilePath>
+            </File>
+            <File>
+              <FileName>ff.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\FatFs\ff.c</FilePath>
+            </File>
+            <File>
+              <FileName>syscall.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\FatFs\option\syscall.c</FilePath>
+            </File>
+            <File>
+              <FileName>unicode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lib\FatFs\option\unicode.c</FilePath>
             </File>
           </Files>
         </Group>

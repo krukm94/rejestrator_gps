@@ -87,8 +87,8 @@
 /** @defgroup USBD_STORAGE_IF_Private_Variables
   * @{
   */
-extern SD_HandleTypeDef sd1;
-extern HAL_SD_CardInfoTypedef SDCardInfo1;
+extern SD_HandleTypeDef 			uSdHandle;
+extern HAL_SD_CardInfoTypedef uSdCardInfo;
 
 const int8_t  STORAGE_Inquirydata_FS[] = {/* 36 */
   
@@ -179,8 +179,8 @@ int8_t STORAGE_Init_FS (uint8_t lun)
 int8_t STORAGE_GetCapacity_FS (uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 { 
 	
-	HAL_SD_Get_CardInfo(&sd1, &SDCardInfo1);
-  *block_num  = SDCardInfo1.CardCapacity / BLOCK_SIZE;
+	HAL_SD_Get_CardInfo(&uSdHandle, &uSdCardInfo);
+  *block_num  = uSdCardInfo.CardCapacity / BLOCK_SIZE;
 	*block_size = BLOCK_SIZE;
   //*block_num  = STORAGE_BLK_NBR;
   //*block_size = STORAGE_BLK_SIZ;
@@ -223,7 +223,7 @@ int8_t STORAGE_Read_FS (uint8_t lun,
                         uint32_t blk_addr,                       
                         uint16_t blk_len)
 {
-	HAL_SD_ReadBlocks(&sd1, (uint32_t*)buf, (uint64_t)(blk_addr * BLOCK_SIZE), BLOCK_SIZE, blk_len);
+	HAL_SD_ReadBlocks(&uSdHandle, (uint32_t*)buf, (uint64_t)(blk_addr * BLOCK_SIZE), BLOCK_SIZE, blk_len);
   return (USBD_OK);
 }
 
@@ -239,7 +239,7 @@ int8_t STORAGE_Write_FS (uint8_t lun,
                          uint32_t blk_addr,
                          uint16_t blk_len)
 {
-	HAL_SD_WriteBlocks(&sd1, (uint32_t*)buf, (uint64_t)(blk_addr * BLOCK_SIZE), BLOCK_SIZE, blk_len);
+	HAL_SD_WriteBlocks(&uSdHandle, (uint32_t*)buf, (uint64_t)(blk_addr * BLOCK_SIZE), BLOCK_SIZE, blk_len);
   return (USBD_OK);
 }
 

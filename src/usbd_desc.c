@@ -116,6 +116,7 @@ USBD_DescriptorsTypeDef FS_Desc =
   USBD_FS_SerialStrDescriptor,
   USBD_FS_ConfigStrDescriptor,
   USBD_FS_InterfaceStrDescriptor,
+	
 #if (USBD_LPM_ENABLED == 1)  
   USBD_FS_USR_BOSDescriptor,
 #endif  

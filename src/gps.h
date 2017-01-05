@@ -11,7 +11,7 @@
 void gpsUartInit(void);
 void gpsUartWrite(char data);
 void gpsUartWriteS(char *s);
-//void gpsUartOdczyt(uint8_t rx);
+void gpsUartOdczyt(uint8_t rx);
 
 #endif
 

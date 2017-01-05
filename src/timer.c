@@ -7,7 +7,8 @@
 
 TIM_HandleTypeDef			tim3;
 
-uint8_t led_cnt = 0; 
+volatile uint8_t led_cnt = 0; 
+
 int16_t x,y,z;
 
 //tim_3_init
@@ -24,7 +25,7 @@ void tim_3_init(void){
 		errorFunc("\n\r#error:timer.c(20):HAL_TIM_Base_Init");
 	}
 	
-	HAL_NVIC_SetPriority(TIM3_IRQn, 1, 5);
+	HAL_NVIC_SetPriority(TIM3_IRQn, 4, 5);
 	HAL_NVIC_EnableIRQ(TIM3_IRQn);
 	
 	__HAL_TIM_ENABLE(&tim3);
@@ -41,16 +42,19 @@ void TIM3_IRQHandler(void)
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim3, TIM_SR_UIF);	
 		
-		
 		led_cnt++;
 		ledOff(3);
-		if(!(led_cnt % 5)) bmi160ReadAcc(&x,&y,&z);
-		if(!(led_cnt % 20)) 
+		
+		if(!(led_cnt % 5)) 
 		{
-			ledOn(3);	
-			ledOff(1);
-			ledOff(4);
+		//bmi160ReadAcc(&x,&y,&z);		
 		}
+			if(!(led_cnt % 20)) 
+			{
+				ledOn(3);	
+				ledOff(1);
+				ledOff(4);
+			}
 	}
 
 }

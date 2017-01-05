@@ -27,6 +27,11 @@
 #include "bmi160.h"
 #include "usb.h"
 
+#include "ff.h"
+#include "diskio.h"
+#include "fatfs_sd_sdio.h"
+#include "AK_stm32_fatfs.h"
+
 void SystemClock_Config(void);
 
 void init(void);

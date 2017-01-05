@@ -6,10 +6,12 @@
 
 UART_HandleTypeDef  gps_uart;
 
-uint8_t gpsUartRx;
-//int cnt_usart1 = 0;
-//uint8_t buf_usart1[1000];
-
+uint8_t gpsRecive;
+int8_t cnt_uart = 0;
+uint8_t gga_flag = 0;
+uint8_t gga_pointer = 0;
+uint8_t fix_flag = 0;
+uint8_t buf_uart[600];
 
 void gpsUartInit(void)
 {
@@ -75,10 +77,14 @@ void gpsUartInit(void)
 	HAL_NVIC_SetPriority(GPS_UART_IRQn_NAME, 2, 3);
   HAL_NVIC_EnableIRQ(GPS_UART_IRQn_NAME);
 	
-	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
-	
 	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
-	//gpsUartWriteS("$PMTK251,38400*27\r\n");
+	
+	HAL_Delay(10);
+	
+	gpsUartWriteS("$PMTK220100*2F\r\n\n");
+	
+	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
+
 }
 
 //EXTI1
@@ -94,11 +100,14 @@ void EXTI1_IRQHandler(void)
 //UART4_IRQHandler
 void UART4_IRQHandler(void)
 {		
-		if(GPS_UART_INSTANCE -> ISR & UART_FLAG_RXNE){
-			gpsUartRx = GPS_UART_INSTANCE -> RDR;
-			//gpsUartOdczyt(usart1_rx);
-			//serviceUartWrite(GPS_UART_INSTANCE -> RDR);
-		}
+	if(GPS_UART_INSTANCE -> ISR & UART_FLAG_RXNE)
+	{
+		gpsRecive = GPS_UART_INSTANCE -> RDR;
+		gpsUartOdczyt(gpsRecive);
+		
+		serviceUartWrite(gpsRecive);
+		
+	}
 }
 
 //gpsUartWrite
@@ -115,43 +124,53 @@ void gpsUartWriteS(char *s)
 	{
 		while(!(__HAL_UART_GET_FLAG(&gps_uart, UART_FLAG_TC)));
 		gpsUartWrite(*s++);
-		
-		
 	}
 }
 
-//void gpsUartOdczyt(uint8_t rx){
-//	
-//		buf_usart1[cnt_usart1] = rx;
+void gpsUartOdczyt(uint8_t rx){
+	
+	buf_uart[cnt_uart] = rx;
 
-//	
-//		//Przeszukuje odebrany bufor szukajac "GTV"
-//		if(buf_usart1[cnt_usart1] == 71){	//G
-//			if(buf_usart1[cnt_usart1 - 1] == 84){	//T
-//				if(buf_usart1[cnt_usart1 - 2] == 86){	//V
+	//Przeszukuje odebrany bufor szukajac "GTV"
+	if(buf_uart[cnt_uart] == 'A'){	//A
+		if(buf_uart[cnt_uart - 1] == 'G'){	//G
+			if(buf_uart[cnt_uart - 2] == 'G'){	//G
 
-//								last_line_usart1 = 1; //flaga wykrycia ostatniej lini
-//				}
-//			}
-//		}
+				gga_flag = 1; //flaga wykrycia ostatniej lini
+				gga_pointer = cnt_uart; 
+			}
+		}
+	}
 
-//		
-//		// wyszukiwanie znaku New Line		
-//		if(last_line_usart1){
-//				if(buf_usart1[cnt_usart1] == 10){
-//					
-//					uint16_t i;
-//					// - 1 poniewaz na koncu funkcji jest cnt++ a chcemy wejsc wchodizc w funkcjie z wartoscia 0;
-//					cnt_usart1 = -1;
-//					last_line_usart1 = 0;
-//				
-//					//uart4_WriteS(buf_usart1);
-//					// niezbedne wyczyszczenie smieci z buforu
-//						for(i=0;i<1000;i++){
-//							buf_usart1[i] = 0;
-//						}
-//				}
-//		}
-//		cnt_usart1++;
+	if(gga_flag)
+	{
+			if(buf_uart[cnt_uart] == 10)
+			{
+				uint8_t cn;
+				cnt_uart = -1;
+				gga_flag = 0;
+			
+				for(cn=0 ; cn <50 ; cn++)
+				{
+					if(buf_uart[gga_pointer + cn] == 'E' || buf_uart[gga_pointer + cn] == 'W')
+					{
+						if(buf_uart[gga_pointer + cn + 2] == '1')
+						{
+							fix_flag = 1;
+							break;
+						}
+						else fix_flag = 0;
+					}
+				}
 
-//}
+				memset(buf_uart , 0 , sizeof(buf_uart));
+			}
+	}
+	
+		if(fix_flag)
+	{
+		
+	}
+	cnt_uart++;
+
+}

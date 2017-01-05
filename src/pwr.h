@@ -14,6 +14,8 @@ void StandByMode(void);
 void StopMode0(void);
 void StopMode2(void);
 
+void SleepMode(void);
+
 
 #endif //__pwr_H_
 

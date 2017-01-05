@@ -55,6 +55,7 @@ void setAccRange(uint8_t lsb);
 void setSigMotionInt(void);
 void setAnyMotionInt(void);
 void setNoMotionInt(void);
+void bmi160IntFunc(void);
 
 #endif
 
