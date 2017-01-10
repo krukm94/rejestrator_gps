@@ -5,27 +5,44 @@
 
 #include "bmi160.h"
 
-//Handles 
-SPI_HandleTypeDef spi1;
-
-//variables
-uint8_t acc_buf[6];
-									
-char print_acc[30];
-float X,Y,Z;
-
-//deklaracja struktury acc_axis 
-acc_axis acc;	
-
+//LSB defines for ACC
 #define LSB_2g	 58.688890193 //ug
 #define LSB_4g	 117.37089201 //ug
 #define LSB_8g	 234.74178403 //ug
 #define LSB_16g  469.48356807 //ug
 
+//Handles 
+SPI_HandleTypeDef spi1;
+
+TIM_HandleTypeDef			tim4;
+
+//Variables for avrage filter
+float srednia = 0.9;
+uint16_t dt   = 10;
+
+//Variables for Acc data
+volatile float rawData;
+volatile float filteredData;
+volatile uint8_t threshold_flag;
+volatile uint8_t threshold_detection;
+volatile uint8_t threshold_cnt;
+									
+char print_acc[80];
+
+//Acc structure declaration
+acc_axis acc;	
+
 float acc_lsb;
 
-//bmi160Init
-//
+//FatFS variables
+extern FIL file;
+ 
+//GPS variables
+extern gps_data gps_nmea;
+
+/**
+  * @brief  Initialization BMI160
+  */
 void bmi160Init(void)
 {
 	//GPIO handle
@@ -73,7 +90,7 @@ void bmi160Init(void)
 	HAL_GPIO_Init(BMI160_PORT , &gpio);
 	
 	spi1.Instance 							= BMI160_SPI_INSTANCE;
-	spi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+	spi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
 	spi1.Init.DataSize 					= SPI_DATASIZE_8BIT;
 	spi1.Init.Direction 				= SPI_DIRECTION_2LINES;
 	spi1.Init.Mode 							= SPI_MODE_MASTER;
@@ -133,10 +150,15 @@ void bmi160Init(void)
 	//Set No Motion interrupt
 	setNoMotionInt();
 	
+	fifoConfig();
 }
 
-//bmiRead
-//
+/**
+  * @brief  Read bmi160 register
+	* @param  addr_reg : adres of register
+	*         pData    : Pointer to store read data
+	*					Size     : Size of data to read
+  */
 void bmi160Read(uint8_t addr_reg , uint8_t* pData , uint8_t Size)
 {
 	addr_reg |= 0x80;																		
@@ -150,8 +172,12 @@ void bmi160Read(uint8_t addr_reg , uint8_t* pData , uint8_t Size)
 	LL_GPIO_SetOutputPin(BMI160_PORT , BMI160_CS); 		
 }
 
-//bmi160Write
-//
+/**
+  * @brief  BMI160 Write Reg
+	* @param  addr_teg : adres of register to write
+	*  				pData    : Pionter to data
+	*					Size		 : Size of data to send
+  */
 void bmi160Write(uint8_t addr_reg , uint8_t* pData , uint8_t Size)
 {
 	LL_GPIO_ResetOutputPin(BMI160_PORT , BMI160_CS);
@@ -162,8 +188,9 @@ void bmi160Write(uint8_t addr_reg , uint8_t* pData , uint8_t Size)
 	LL_GPIO_SetOutputPin(BMI160_PORT , BMI160_CS);
 }
 
-//bmi160DefaultConfiguration
-//
+/**
+  * @brief  Default config for bmi160
+  */
 void bmi160DefaultConfiguration(void)
 {
 	uint8_t acc_pmu_normal = 0x11;
@@ -173,8 +200,10 @@ void bmi160DefaultConfiguration(void)
 	HAL_Delay(10);
 }	
  
-//setAccRange
-//
+/**
+  * @brief  Set range of accelerometer
+	* @param  lsb: range of acc it can be ( 2 , 4 , 8 or 16 )
+  */
 void setAccRange(uint8_t lsb)
 {
 	uint8_t acc_range_2  = 0x03;
@@ -206,22 +235,24 @@ void setAccRange(uint8_t lsb)
 	}
 }
 
-//bmi160ReadAcc
-//
+/**
+  * @brief  Read bmi160 accelerometer values
+  * @param  acc_x, acc_y and acc_y are pointers to store acc data
+  */
 void bmi160ReadAcc(int16_t *acc_x , int16_t *acc_y , int16_t *acc_z)
 {
 	uint8_t read, read1 , read2;
-	bmi160Read( BMI160_ACC_X , acc_buf , 6);
+	bmi160Read( BMI160_ACC_X , acc.acc_buf , 6);
 	
-	acc.acc_x = (acc_buf[1] << 8) | acc_buf[0];
-	acc.acc_y = (acc_buf[3] << 8) | acc_buf[2];
-	acc.acc_z = (acc_buf[5] << 8) | acc_buf[4];
+	acc.acc_x = (acc.acc_buf[1] << 8) | acc.acc_buf[0];
+	acc.acc_y = (acc.acc_buf[3] << 8) | acc.acc_buf[2];
+	acc.acc_z = (acc.acc_buf[5] << 8) | acc.acc_buf[4];
 	
-	X = (acc.acc_x * acc_lsb)/1000000;												
-	Y = (acc.acc_y * acc_lsb)/1000000;
-	Z = (acc.acc_z * acc_lsb)/1000000;
+	acc.X = (acc.acc_x * acc_lsb)/1000000;												
+	acc.Y = (acc.acc_y * acc_lsb)/1000000;
+	acc.Z = (acc.acc_z * acc_lsb)/1000000;
 	
-	acc.acc_g = (float)sqrt(X*X + Y*Y + Z*Z);
+	acc.acc_g[0] = (float)sqrt(acc.X*acc.X + acc.Y*acc.Y + acc.Z*acc.Z);
 	
 	bmi160Read(BMI160_INT_STATUS0 , &read , 1);
 	bmi160Read(BMI160_INT_STATUS1 , &read1 , 1);
@@ -229,13 +260,14 @@ void bmi160ReadAcc(int16_t *acc_x , int16_t *acc_y , int16_t *acc_z)
 	
 	sprintf(print_acc,
 	"\n\rX: %f [g], Y: %f [g], Z: %f [g] , G: %f [g] , INT0: 0x%0.2X  , INT1: 0x%0.2X , INT2: 0x%0.2X", 
-	X , Y , Z , acc.acc_g , read, read1 , read2);
+	acc.X , acc.Y , acc.Z , acc.acc_g[0] , read, read1 , read2);
 	
 	serviceUartWriteS(print_acc);
 }
 
-//setSigMotionInt
-//
+/**
+  * @brief  Set Significant Motion Interrupt in BMI160
+  */
 void setSigMotionInt(void)
 {
 	uint8_t int_motion3 	= 0x12;
@@ -256,8 +288,9 @@ void setSigMotionInt(void)
 	bmi160Write(BMI160_INT_EN0 , &int_en , 1);
 }
 
-//setAnyMotionInt
-//
+/**
+  * @brief  Set anymotion detection interrupt in bmi160
+  */
 void setAnyMotionInt(void)
 {
 	uint8_t int_motion1 	= 0x20;
@@ -278,8 +311,9 @@ void setAnyMotionInt(void)
 	bmi160Write(BMI160_INT_EN0 , &int_en0 , 1);
 }
 
-//setNoMotionInterrupt
-//
+/**
+  * @brief  Set no motion detection interrupt in bmi160
+  */
 void setNoMotionInt(void)
 {
 	uint8_t int_reset = 0xB1;
@@ -312,8 +346,9 @@ void setNoMotionInt(void)
 	bmi160Write(BMI160_INT_EN0 , &en0 , 1);
 }
 
-//bmi160IntFunc
-//
+/**
+  * @brief  Interrupt function, it's call when interrupts occurs
+  */
 void bmi160IntFunc(void)
 {
 	uint8_t read = 0;
@@ -327,7 +362,208 @@ void bmi160IntFunc(void)
 	}
 }
 
+/**
+  * @brief  Configuration of Fifo
+  */
+void fifoConfig(void)
+{
+	uint8_t fifo_config = 0x40;
+	
+	//Set enable Fifo for acc in header les mode.
+	bmi160Write(BMI160_FIFO_CONFIG1 , &fifo_config , 1);
+	
+}
 
-//END OF FILE
+/**
+  * @brief  Reading acc data from fifo
+  */
+void bmi160FifoAccRead(void)
+{
+	uint8_t fifo_length[2];
+	
+	acc.acc_g_size = 0;
+	
+	//Read fifo lvl 
+	bmi160Read(BMI160_FIFO_LENGTH0 , fifo_length , 2);
+	
+	fifo_length[1] = (fifo_length[1] << 5);
+	fifo_length[1] = (fifo_length[1] >> 5);
+	
+	acc.fifo_lvl = ((fifo_length[1] << 8 ) | (fifo_length[0]));
+	
+	acc.fifo_v = (acc.fifo_lvl/6);
+	
+	bmi160Read(BMI160_FIFO_DATA , acc.acc_fifo_read , acc.fifo_lvl );
+}
+	
+/**
+  * @brief  Result G vector
+  */
+void bmi160ResultG(void)
+{
+	uint16_t cnt = 0, cnt_buf = 0;
+	
+	for(cnt_buf = 0 ; cnt_buf < acc.fifo_v - 1 ; cnt_buf++)
+	{
+		if(cnt > acc.fifo_lvl) break;
+		
+		acc.acc_x = (acc.acc_fifo_read[1 + cnt] << 8) | acc.acc_fifo_read[0 + cnt];
+		acc.acc_y = (acc.acc_fifo_read[3 + cnt] << 8) | acc.acc_fifo_read[2 + cnt];
+		acc.acc_z = (acc.acc_fifo_read[5 + cnt] << 8) | acc.acc_fifo_read[4 + cnt];
+		
+		acc.X = (acc.acc_x * acc_lsb)/1000000;												
+		acc.Y = (acc.acc_y * acc_lsb)/1000000;
+		acc.Z = (acc.acc_z * acc_lsb)/1000000;
+	
+		acc.acc_g[cnt_buf] = (float)sqrt(acc.X*acc.X + acc.Y*acc.Y + acc.Z*acc.Z);
+		acc.acc_g_size++;
+		
+		cnt+=6;		
+	}
+}
 
 
+/**
+  * @brief  Timer 4 Init function
+*/
+void tim_4_init(void)
+{
+	uint8_t bmi160_fifo_flush = 0xB0;
+	
+	__HAL_RCC_TIM4_CLK_ENABLE();
+	
+	tim4.Instance = TIM4;
+	tim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+	tim4.Init.Prescaler = 2000 - 1;
+	tim4.Init.Period = 	8500 - 1;		//4 Hz
+	
+	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_1 , 1700 - 1);	//50ms  after update
+	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_2 , 3400 - 1);	//100ms after update
+	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_3 , 5100 - 1);  //150ms after update
+	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_4 , 6800 - 1);  //200ms	after update
+	
+	HAL_NVIC_SetPriority(TIM4_IRQn, TIM4_NVIC_PRIORITY , 0);
+	HAL_NVIC_EnableIRQ(TIM4_IRQn);
+	
+	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_UPDATE);
+	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC1);
+	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC2);
+	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC3);
+	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC4);
+	
+	
+	bmi160Write(BMI160_CMD , &bmi160_fifo_flush , 1);
+	
+	if(HAL_TIM_Base_Init(&tim4) != HAL_OK){
+		errorFunc("\n\r#error:bmi160.c(400):HAL_TIM_Base_Init");
+	}
+	__HAL_TIM_ENABLE(&tim4);
+	
+	serviceUartWriteS("\n\r#TIM4 INIT OK");
+}
+
+/**
+  * @brief  Timer 4 interrupt function
+*/
+void TIM4_IRQHandler(void)
+{
+	/* UPDATE INTERRUPT */
+	// 300 [us]
+	if(__HAL_TIM_GET_FLAG(&tim4, TIM_SR_UIF))			
+	{
+		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_UIF); 
+		timeMeasPinHigh();
+		bmi160FifoAccRead();  
+		timeMeasPinLow();
+	}
+	
+	/* CC1 INTERUPT */
+	// 138 [us]
+	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC1IF))	
+	{		
+		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_CC1IF); 
+		
+		bmi160ResultG();
+		
+	}
+	
+	/* CC2 INTERRUPY */
+	// 45 [us]
+	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC2IF))	
+	{
+		uint16_t cnt;
+		
+		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC2IF);
+
+		for(cnt = 0 ; cnt < acc.acc_g_size ; cnt++)
+		{		
+			acc.acc_g_sre[cnt] = sre(acc.acc_g[cnt]);
+			rawData = acc.acc_g[cnt];
+			filteredData = acc.acc_g_sre[cnt];
+			
+			if(filteredData > ((float)1.3)) threshold_flag++;
+			else threshold_flag = 0x00;
+			
+			if(threshold_flag == 3)
+			{
+				threshold_flag = 0;
+				threshold_detection = 0x01;
+				threshold_cnt = cnt;
+			}
+			else threshold_detection = 0;
+		}
+
+	}
+	
+	/* CC3 INTERRUPT */	
+	// 0.8 [us]
+	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC3IF))	
+	{
+		char folder_buf[40];
+		
+		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC3IF);
+	
+		if(threshold_detection == 0x01)
+		{
+			threshold_detection = 0x00;
+			sprintf(folder_buf , "SD:/%s/ACC", gps_nmea.date);
+			
+			if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
+			{
+				f_lseek(&file , f_size(&file));
+				
+				sprintf(print_acc , "G: %f" , acc.acc_g_sre[threshold_cnt]);
+				f_printf(&file , "\r\n Time: %s Acc %s Lat: %s Lon: %s" , 
+				gps_nmea.UTC_time , print_acc , gps_nmea.latitude , gps_nmea.longitude);
+				
+				f_close(&file);
+			}
+		}
+	}
+	
+	/* CC4 INTERRUPT */
+	// 5.8 [us]
+	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC4IF))	
+	{
+		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC4IF);
+		
+		memset(acc.acc_fifo_read , 0 , sizeof(acc.acc_fifo_read));
+		memset(acc.acc_g , 0 , sizeof(acc.acc_g));
+		memset(acc.acc_g_sre , 0 , sizeof(acc.acc_g_sre));
+	}
+	
+}
+/**
+  * @brief  Srednia kroczaca
+  * @param  wynik = new sample
+	*   			sre = variable to save result
+  */
+
+float sre(float wynik)
+{
+	srednia = srednia * dt;
+	srednia = srednia + wynik;
+	srednia = srednia / (dt + 1);
+	
+	return srednia;
+}

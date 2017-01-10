@@ -10,10 +10,7 @@
 
 typedef struct
 {
-	char    UTC_time[9];
-	char    date[9];
-	char 		latitude[10];
-	char    longitude[11];
+	char    UTC_time[8];
 	uint8_t UTC_time_h;
 	uint8_t UTC_time_m;
 	uint8_t UTC_time_s;
@@ -27,7 +24,6 @@ void gpsUartWrite(char data);
 void gpsUartWriteS(char *s);
 
 void analyzeGPS(void);
-void saveGpsToSD(void);
 
 #endif
 

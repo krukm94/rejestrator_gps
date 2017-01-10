@@ -7,6 +7,9 @@
 
 volatile uint32_t system_cnt;
 
+/* Fatfs structure */
+FATFS FS;
+
 
 //errorFunc
 void errorFunc(char *s)
@@ -19,7 +22,6 @@ void errorFunc(char *s)
 	{
 		ledToggle(1);
 		HAL_Delay(50);
-		
 	}	
 }	
 
@@ -29,30 +31,43 @@ void init(void)
 {
 	SystemClock_Config();	
 	
+	HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+	
 	serviceUartInit();
+	//serviceUart2Init();
+	
 	serviceUartWriteS("\n\r$$$$$$$$$$$$$\n\r\n\r-->REJESTRATOR GPS<--\n\r$ M.KRUK\n\r$ THIS IS SERVICE UART\n\r---------------------");
 	
 	gpioInit();
-
-	gpsUartInit();
 	
 	pwrInit();
 	
 	bmi160Init();
 	
-	//sdCardInit();
+	if (f_mount(&FS, "SD:", 1) != FR_OK) serviceUartWriteS("\r\n#f_mount (init) fail ");
 	
-	//MX_USB_DEVICE_Init();
+	MX_USB_DEVICE_Init();
 	
-	tim_3_init();
+	init_timers();
+	
+	tim_4_init();
+	
+	gpsUartInit();
 	
 	//Nvic settings
-	HAL_NVIC_SetPriority(EXTI0_IRQn, 3, 1);
+	
+	//Pin nCH (BQ24072)
+	HAL_NVIC_SetPriority(EXTI0_IRQn, EXTI0_NVIC_PRIORITY , 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	
+	//Pin PPS (FIREFLY X1)
+	HAL_NVIC_SetPriority(EXTI1_IRQn, EXTI1_NVIC_PRIORITY , 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 3, 1);
+	//Pin INT1 (BMI160) | Pin nPGOOD (BQ24072)
+  HAL_NVIC_SetPriority(EXTI2_IRQn, EXTI2_NVIC_PRIORITY , 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
+	
 }
 
 /** System Clock Configuration
@@ -131,6 +146,6 @@ void SystemClock_Config(void)
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
   /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(SysTick_IRQn, SYSTIC_NVIC_PRIOTITY, 0);
 }
 

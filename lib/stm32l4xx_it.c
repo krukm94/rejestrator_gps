@@ -62,6 +62,10 @@ extern UART_HandleTypeDef 	service_uart;
 extern SD_HandleTypeDef 		uSdHandle;
 extern SD_CardInfo 					uSdCardInfo;
 
+extern UART_HandleTypeDef  gps_uart;
+
+extern volatile uint8_t charge_flag;
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -216,15 +220,19 @@ void EXTI0_IRQHandler(void)
   {
 		__HAL_GPIO_EXTI_CLEAR_IT(PWR_NCH_PIN);
 		ledOff(1);
+		
 		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NCH_PIN))
 		{
 			ledOn(1);
+			charge_flag = 1;
 		}
 	}
 }
 
 
-//EXTI2
+/**
+  * @brief  EXTI2 IRQ Handler
+  */
 void EXTI2_IRQHandler(void)
 {
 	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
@@ -267,7 +275,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 
 
-//EXTI4 
+/**
+  * @brief  Exti 4 IRq handler
+  */
 void EXTI4_IRQHandler(void)
 {
 	if(__HAL_GPIO_EXTI_GET_IT(BMI160_INT2) != RESET)
@@ -277,6 +287,21 @@ void EXTI4_IRQHandler(void)
 
 	}
 }
+
+/**
+  * @brief  Exit line 15 10 Irq Handler
+  */
+//void EXTI15_10_IRQHandler(void)
+//{
+//		if(HAL_GPIO_ReadPin(GPIOB , GPIO_PIN_12))
+//		{
+//			//__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
+//			//f_mount(NULL, "SD:", 1);
+//			ledOn(3);
+//			ledOn(1);
+//			ledOn(4);
+//		}
+//}
 /******************************************************************************/
 /*                 STM32L4xx Peripherals Interrupt Handlers                   */
 /*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */

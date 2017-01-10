@@ -2,6 +2,8 @@
 
 #include "fatfs_sd_sdio.h"
 
+#include "init.h"
+
 SD_HandleTypeDef 					uSdHandle;
 SD_CardInfo 							uSdCardInfo;
 
@@ -311,7 +313,7 @@ static void SD_MspInit(void)
   HAL_GPIO_Init(GPIOD, &gpio_init_struct);
 
   /* NVIC configuration for SDIO interrupts */
-  HAL_NVIC_SetPriority(SDMMC1_IRQn, 4, 1);
+  HAL_NVIC_SetPriority(SDMMC1_IRQn, SDMMC1_NVIC_PRIORITY , 0);
 	HAL_NVIC_EnableIRQ(SDMMC1_IRQn);
 	
 //	/* Configure DMA Rx parameters */

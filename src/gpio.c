@@ -4,7 +4,9 @@
 
 #include "gpio.h"
 
-//gpioInit
+/**
+  * @brief  Gpios init
+  */
 void gpioInit(void)
 {
 	//RCC ON
@@ -38,10 +40,15 @@ void gpioInit(void)
 	
   LL_GPIO_SetOutputPin(MAINTAIN_PORT , MAINTAIN_PIN);
 	
+	//ts3Sel_usbDetectPinInit();
+	spi2cs_timeMeasPinInit();
+	
 	serviceUartWriteS("\n\r#GPIO INIT OK");
 }
 
-//ledON
+/**
+  * @brief  Set led ON
+  */
 void ledOn(uint8_t led_nr)
 {
 	switch(led_nr)
@@ -58,7 +65,9 @@ void ledOn(uint8_t led_nr)
 	}
 }
 
-//ledOff
+/**
+  * @brief  Set led off
+  */
 void ledOff(uint8_t led_nr)
 {
 	switch(led_nr)
@@ -75,7 +84,9 @@ void ledOff(uint8_t led_nr)
 	}
 }
 
-//ledToggle
+/**
+  * @brief  Toggle led
+  */
 void ledToggle(uint8_t led_nr)
 {
 	switch(led_nr)
@@ -90,4 +101,64 @@ void ledToggle(uint8_t led_nr)
 			LL_GPIO_TogglePin(LED4_PORT , LED4_PIN);
 			break;
 	}
+}
+
+/**
+  * @brief  Init pin for ts3Srl /usb Detect Pin 
+  */
+void ts3Sel_usbDetectPinInit(void)
+{
+	GPIO_InitTypeDef gpio;
+	
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	
+	gpio.Pin = GPIO_PIN_12;
+	gpio.Mode = GPIO_MODE_IT_RISING;
+	gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+	
+	HAL_GPIO_Init(GPIOB , &gpio);
+
+}
+
+/**
+  * @brief  Init spi2 CS or time MeasPin
+  */
+void spi2cs_timeMeasPinInit(void)
+{
+	GPIO_InitTypeDef gpio;
+	
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	
+	gpio.Pin = GPIO_PIN_4;
+	gpio.Mode = GPIO_MODE_OUTPUT_PP;
+	gpio.Pull = GPIO_PULLUP;
+	gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+	
+	HAL_GPIO_Init(GPIOC , &gpio);
+	
+	timeMeasPinLow();
+}
+
+/**
+  * @brief  Set time measurment pin high
+  */
+void timeMeasPinHigh(void)
+{
+	LL_GPIO_SetOutputPin(GPIOC , GPIO_PIN_4);
+}
+
+/**
+  * @brief  Set time measurment pin low
+  */
+void timeMeasPinLow(void)
+{
+	LL_GPIO_ResetOutputPin(GPIOC , GPIO_PIN_4);
+}
+
+/**
+  * @brief  time Measurment toggle pin
+  */
+void timeMeasPinToggle(void)
+{
+	LL_GPIO_TogglePin(GPIOC , GPIO_PIN_4);
 }

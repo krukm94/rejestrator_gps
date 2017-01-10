@@ -6,13 +6,29 @@
 
 UART_HandleTypeDef  gps_uart;
 
-uint8_t gpsRecive;
-int8_t cnt_uart = 0;
-uint8_t gga_flag = 0;
-uint8_t gga_pointer = 0;
-uint8_t fix_flag = 0;
-uint8_t buf_uart[600];
+volatile uint8_t gpsRecive;
+volatile uint16_t cnt_uart = 0;
+volatile uint16_t nmea_size = 0;
+volatile char buf_uart[1000];
+//GPS NMEA FLAGS
+volatile uint8_t fix_flag = 0;
+volatile uint8_t gga_flag = 0;
+volatile uint8_t vtg_flag = 0;
 
+//Gps Structure
+gps_data gps_nmea;
+
+//FatFS variables
+FIL file;
+FRESULT fres;
+DIR folder;
+
+//FatFs flags
+uint8_t mkdir_flag = 0;
+
+/**
+  * @brief  Uart for GPS init
+  */
 void gpsUartInit(void)
 {
 	GPIO_InitTypeDef gpio;
@@ -50,11 +66,6 @@ void gpsUartInit(void)
 	gpio.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPS_PPS_PORT , &gpio);
 	
-	//Interrupt for PPS pin
-	//Nvic settings
-	HAL_NVIC_SetPriority(EXTI1_IRQn, 3, 2);
-  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-	
 	gps_uart.Instance = GPS_UART_INSTANCE;
 	gps_uart.Init.BaudRate = GPS_UART_BAUDRATE;
 	gps_uart.Init.StopBits = UART_STOPBITS_1;
@@ -65,6 +76,9 @@ void gpsUartInit(void)
 	gps_uart.Init.OverSampling = UART_OVERSAMPLING_16;
 	gps_uart.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED;
 	
+	HAL_NVIC_SetPriority(GPS_UART_IRQn_NAME, UART_GPS_NVIC_PRIORITY , 0);
+  HAL_NVIC_EnableIRQ(GPS_UART_IRQn_NAME);
+	
 	if(HAL_UART_Init(&gps_uart))
 	{
 		errorFunc("\n\r#error:gps_uart.c(36):HAL_UART_Init");
@@ -74,20 +88,23 @@ void gpsUartInit(void)
 		
 	serviceUartWriteS("\n\r#GPS UART INIT OK");
 	
-	HAL_NVIC_SetPriority(GPS_UART_IRQn_NAME, 2, 3);
-  HAL_NVIC_EnableIRQ(GPS_UART_IRQn_NAME);
-	
 	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
 	
-	HAL_Delay(10);
-	
-	gpsUartWriteS("$PMTK220100*2F\r\n\n");
-	
 	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
-
+	
+	gps_nmea.date[0] = '0'; //Set default date to nmea
+	gps_nmea.date[1] = '1';
+	gps_nmea.date[2] = '.';
+	gps_nmea.date[2] = '0';
+	gps_nmea.date[2] = '1';
+	gps_nmea.date[2] = '.';
+	gps_nmea.date[2] = '1';
+	gps_nmea.date[2] = '7';
 }
 
-//EXTI1
+/**
+  * @brief  EXTI1 Interrupt
+  */
 void EXTI1_IRQHandler(void)
 {
 	if(__HAL_GPIO_EXTI_GET_IT(GPS_PPS_PIN) != RESET)
@@ -97,27 +114,181 @@ void EXTI1_IRQHandler(void)
 	}
 }
 
-//UART4_IRQHandler
+/**
+  * @brief  UART4 Inetrrupt
+  */
 void UART4_IRQHandler(void)
 {		
 	if(GPS_UART_INSTANCE -> ISR & UART_FLAG_RXNE)
 	{
-		gpsRecive = GPS_UART_INSTANCE -> RDR;
-		gpsUartOdczyt(gpsRecive);
+		buf_uart[cnt_uart] = GPS_UART_INSTANCE -> RDR;
 		
-		serviceUartWrite(gpsRecive);
+		if((buf_uart[cnt_uart - 2] == 'V') && (buf_uart[cnt_uart - 1] == 'T') && (buf_uart[cnt_uart] == 'G')) vtg_flag = 1;
+
+		if((vtg_flag == 1) && (buf_uart[cnt_uart] == '\r')) 
+		{
+			vtg_flag = 0;
+			nmea_size = cnt_uart;
+			analyzeGPS();
+		}
 		
+		cnt_uart++;
+		if(cnt_uart == 999) cnt_uart = 0;
 	}
 }
 
-//gpsUartWrite
+
+/**
+* @brief This function analyze GPS recive bufer
+*/
+void analyzeGPS(void)
+{
+	uint16_t cnt_for,cnt_for2,cnt_lat;
+	uint8_t cn, cn_buf = 0 , comma = 0;
+	
+	for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++)
+	{
+		//Find GGA massage
+		if((buf_uart[cnt_for - 2] == 'G') && (buf_uart[cnt_for - 1] == 'G') && (buf_uart[cnt_for] == 'A'))
+		{		
+			memset(gps_nmea.UTC_time , 0 , 9);
+			//Find UTC_time
+			for(cn = 0 ; cn < 8 ; cn++)
+			{
+				if(cn == 2 || cn == 5) gps_nmea.UTC_time[cn] = ':';
+				else 
+				{
+					gps_nmea.UTC_time[cn] = buf_uart[cnt_for + 2 + cn_buf];
+					cn_buf++;
+				}
+			}
+			
+			//Find Latitude
+			for(cn = 0 ; cn < 60 ; cn++)
+			{
+				if(buf_uart[cnt_for + cn] == ',') comma++;
+					
+				if(comma == 2)
+				{
+					for(cnt_lat = 0 ; cnt_lat < 9 ; cnt_lat++)
+					{
+						if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
+						gps_nmea.latitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
+					}
+				
+					if(comma == 3) gps_nmea.latitude[0] = buf_uart[cnt_for + cn + 1];	
+					
+					if(comma == 4)
+					{
+						for(cnt_lat = 0 ; cnt_lat < 10 ; cnt_lat++)
+						{
+							if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
+							gps_nmea.longitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
+						}
+					}
+					if(comma == 5)
+					{
+						gps_nmea.longitude[0] = buf_uart[cnt_for + cn + 1];	
+						break;
+					}	
+				}
+			}
+			
+			//Check FIX FLAG
+			for(cn=0 ; cn <50 ; cn++)
+			{
+				if(buf_uart[cnt_for + cn] == 'E' || buf_uart[cnt_for + cn] == 'W')
+				{
+					if(buf_uart[cnt_for + cn + 2] == '1')
+					{
+						fix_flag = 1;
+						break;
+					}
+					else fix_flag = 0;
+				}
+			} 
+					
+		}
+		
+		//Find RMC massage
+		if((buf_uart[cnt_for - 2] == 'R') && (buf_uart[cnt_for - 1] == 'M') && (buf_uart[cnt_for] == 'C'))
+		{
+			cn_buf = 0;
+			//Find date
+			for(cnt_for2 = 0 ; cnt_for2 <80 ; cnt_for2++)
+			{
+				if(buf_uart[cnt_for + cnt_for2] == ',') 
+				{
+					comma++;
+					if(comma == 9)
+					{
+						for(cn = 0 ; cn < 8 ; cn++)
+						{
+							if(cn == 2 || cn == 5) gps_nmea.date[cn] = '.';
+							else 
+							{
+								gps_nmea.date[cn] = buf_uart[cnt_for + cnt_for2 + 1 + cn_buf];
+								cn_buf++;
+							}
+						}
+					}	
+				}
+				
+			} 
+			break;
+		}
+	}
+	
+	cnt_uart = 0;
+	
+	if(gps_nmea.date[1] != NULL) saveGpsToSD();
+	memset((void *)buf_uart , 0 , sizeof(buf_uart));
+	
+}//end void analyzeGPS(void)
+
+
+/**
+  * @brief  This function saves data to SD
+  */
+void saveGpsToSD(void)
+{
+	char folder_buf[20];
+	uint16_t cnt_for;
+	
+	__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
+	
+	sprintf(folder_buf , "SD:/%s" , gps_nmea.date);
+	
+	if((f_stat(folder_buf , NULL) != FR_OK)) f_mkdir(folder_buf);
+		
+	sprintf(folder_buf , "SD:/%s/GPS", gps_nmea.date);
+	
+	if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
+	{
+		f_lseek(&file , f_size(&file));
+		f_printf(&file , "\r\nTIME: %s\r\n", gps_nmea.UTC_time);	
+		
+		for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++) f_putc(buf_uart[cnt_for] , &file);
+		
+		f_close(&file);
+	}
+	
+	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
+}
+
+
+/**
+  * @brief  Write one char to uart TX
+  */
 void gpsUartWrite(char data)
 {	
 	while(!(__HAL_UART_GET_FLAG(&gps_uart, UART_FLAG_TXE)));	
 	GPS_UART_INSTANCE ->TDR = data;
 }
 
-//gpsUartWriteS
+/**
+  * @brief  Write string to uart TX
+  */
 void gpsUartWriteS(char *s)
 {
 	while(*s)
@@ -127,50 +298,3 @@ void gpsUartWriteS(char *s)
 	}
 }
 
-void gpsUartOdczyt(uint8_t rx){
-	
-	buf_uart[cnt_uart] = rx;
-
-	//Przeszukuje odebrany bufor szukajac "GTV"
-	if(buf_uart[cnt_uart] == 'A'){	//A
-		if(buf_uart[cnt_uart - 1] == 'G'){	//G
-			if(buf_uart[cnt_uart - 2] == 'G'){	//G
-
-				gga_flag = 1; //flaga wykrycia ostatniej lini
-				gga_pointer = cnt_uart; 
-			}
-		}
-	}
-
-	if(gga_flag)
-	{
-			if(buf_uart[cnt_uart] == 10)
-			{
-				uint8_t cn;
-				cnt_uart = -1;
-				gga_flag = 0;
-			
-				for(cn=0 ; cn <50 ; cn++)
-				{
-					if(buf_uart[gga_pointer + cn] == 'E' || buf_uart[gga_pointer + cn] == 'W')
-					{
-						if(buf_uart[gga_pointer + cn + 2] == '1')
-						{
-							fix_flag = 1;
-							break;
-						}
-						else fix_flag = 0;
-					}
-				}
-
-				memset(buf_uart , 0 , sizeof(buf_uart));
-			}
-	}
-	
-		if(fix_flag)
-	{
-		
-	}
-	cnt_uart++;
-
-}

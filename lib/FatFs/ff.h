@@ -328,7 +328,6 @@ int ff_del_syncobj (_SYNC_t sobj);				/* Delete a sync object */
 #define CREATE_LINKMAP	0xFFFFFFFF
 
 
-
 /*--------------------------------*/
 /* Multi-byte word access macros  */
 

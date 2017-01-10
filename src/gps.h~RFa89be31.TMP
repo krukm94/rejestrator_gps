@@ -8,26 +8,12 @@
 
 #include "init.h"
 
-typedef struct
-{
-	char    UTC_time[9];
-	char    date[9];
-	char 		latitude[10];
-	char    longitude[11];
-	uint8_t UTC_time_h;
-	uint8_t UTC_time_m;
-	uint8_t UTC_time_s;
-	
-}gps_data;
-
-
-
 void gpsUartInit(void);
 void gpsUartWrite(char data);
 void gpsUartWriteS(char *s);
+//void gpsUartOdczyt(uint8_t rx);
 
 void analyzeGPS(void);
-void saveGpsToSD(void);
 
 #endif
 

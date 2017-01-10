@@ -8,7 +8,9 @@
 extern TIM_HandleTypeDef		tim3;
 extern UART_HandleTypeDef 	service_uart;
 
-//pwrInit
+/**
+  * @brief  Power menagment init
+  */
 void pwrInit(void)
 {
 	GPIO_InitTypeDef gpio;
@@ -39,7 +41,9 @@ void pwrInit(void)
 	serviceUartWriteS("\n\r#PWR INIT OK");
 }
 
-//StanByMode
+/**
+  * @brief  Config and enters to standbay mode
+  */
 void StandByMode(void)
 {
 	__HAL_RCC_PWR_CLK_ENABLE();
@@ -67,7 +71,9 @@ void StandByMode(void)
 	HAL_PWR_EnterSTANDBYMode();
 }
 
-//StopMode2
+/**
+  * @brief  Config and enters in StopMode2
+  */
 void StopMode2(void)
 {
 	__HAL_RCC_PWR_CLK_ENABLE();
@@ -89,7 +95,9 @@ void StopMode2(void)
 	HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
 }
 
-//StopMode0
+/**
+  * @brief  Config and enters in StopMode0
+  */
 void StopMode0(void)
 {
 	__HAL_RCC_PWR_CLK_ENABLE();
@@ -111,7 +119,9 @@ void StopMode0(void)
 	HAL_PWREx_EnterSTOP0Mode(PWR_STOPENTRY_WFE);
 }
 
-//SleepMode
+/**
+  * @brief  Config and enters in SleepMode
+  */
 void SleepMode(void)
 {
 	__HAL_RCC_PWR_CLK_ENABLE();

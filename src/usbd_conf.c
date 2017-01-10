@@ -46,6 +46,8 @@
 #include "usbd_def.h"
 #include "usbd_core.h"
 #include "usbd_msc.h"
+
+#include "init.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -102,8 +104,8 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
     }
 
     /* Peripheral interrupt init */
-    HAL_NVIC_SetPriority(OTG_FS_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
+		HAL_NVIC_SetPriority(OTG_FS_IRQn, USB_NVIC_PRIORITY , 0);
+		HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
   }
 }
 
