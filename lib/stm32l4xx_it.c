@@ -54,6 +54,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 extern volatile uint32_t system_cnt;
+
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 extern TIM_HandleTypeDef		tim3;
@@ -163,7 +164,7 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   HAL_IncTick();
-	HAL_SYSTICK_IRQHandler();
+
   system_cnt++;
 }
 
@@ -176,7 +177,9 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE BEGIN OTG_FS_IRQn 0 */
 
   /* USER CODE END OTG_FS_IRQn 0 */
-  HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
+
+  HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);  // the longes 5.3 [ms]
+	
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
 
   /* USER CODE END OTG_FS_IRQn 1 */
@@ -190,7 +193,9 @@ void OTG_FS_IRQHandler(void)
   */
 void SDMMC1_IRQHandler(void)
 {
-	HAL_SD_IRQHandler(&uSdHandle);
+
+	HAL_SD_IRQHandler(&uSdHandle);  //0.6 [ms]
+
 }
 
 
@@ -245,8 +250,6 @@ void EXTI2_IRQHandler(void)
 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	ledOn(1);
-	
 	if (GPIO_Pin == GPIO_PIN_9)
   {  
     HAL_PCDEx_BCD_VBUSDetect (&hpcd_USB_OTG_FS);
@@ -262,15 +265,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	//BMI160 INTERRUPT PIN 1
 	if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
 	{
-		bmi160IntFunc();
+		ledOn(1);
+		bmi160IntFromInt1();
 	}
 	
 	if(__HAL_PWR_GET_FLAG(PWR_FLAG_WUF4))
 	{
 		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF4);
-			
-		__HAL_TIM_ENABLE_IT(&tim3, TIM_IT_UPDATE);
-		__HAL_UART_ENABLE_IT(&service_uart , UART_IT_RXNE);
 	}	
 }
 
@@ -288,20 +289,6 @@ void EXTI4_IRQHandler(void)
 	}
 }
 
-/**
-  * @brief  Exit line 15 10 Irq Handler
-  */
-//void EXTI15_10_IRQHandler(void)
-//{
-//		if(HAL_GPIO_ReadPin(GPIOB , GPIO_PIN_12))
-//		{
-//			//__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
-//			//f_mount(NULL, "SD:", 1);
-//			ledOn(3);
-//			ledOn(1);
-//			ledOn(4);
-//		}
-//}
 /******************************************************************************/
 /*                 STM32L4xx Peripherals Interrupt Handlers                   */
 /*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */

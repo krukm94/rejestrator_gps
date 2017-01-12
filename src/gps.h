@@ -17,6 +17,8 @@ typedef struct
 	uint8_t UTC_time_h;
 	uint8_t UTC_time_m;
 	uint8_t UTC_time_s;
+	uint8_t fix_flag;
+	uint8_t no_fix_cnt;
 	
 }gps_data;
 

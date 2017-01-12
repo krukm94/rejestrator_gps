@@ -9,12 +9,15 @@
 #include "init.h"
 
 void pwrInit(void);
+void tim_15_init(void);
 void StandByMode(void);
 
 void StopMode0(void);
 void StopMode2(void);
 
 void SleepMode(void);
+
+void saveLog(char *s);
 
 
 #endif //__pwr_H_

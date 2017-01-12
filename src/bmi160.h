@@ -69,7 +69,7 @@ void setAccRange(uint8_t lsb);
 void setSigMotionInt(void);
 void setAnyMotionInt(void);
 void setNoMotionInt(void);
-void bmi160IntFunc(void);
+void bmi160IntFromInt1(void);
 
 void fifoConfig(void);
 void bmi160FifoAccRead(void);

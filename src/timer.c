@@ -13,6 +13,7 @@ volatile uint8_t full_charge = 0;
 
 //variables for tim2 (time measurment counter)
 volatile uint8_t tim2_updates;
+int16_t x,y,z;
 
 /**
   * @brief Init all timers 
@@ -26,8 +27,6 @@ void init_timers(void)
 	timeMeasPinLow();
 	
 	tim_3_init();
-	
-	serviceUartWriteS("\r\n#Timers Inits OK");
 }
 
 
@@ -40,8 +39,8 @@ void tim_3_init(void){
 	
 	tim3.Instance = TIM3;
 	tim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-	tim3.Init.Prescaler = 2000;
-	tim3.Init.Period = 	3200;
+	tim3.Init.Prescaler = 20000 - 1;
+	tim3.Init.Period = 	340 - 1;
 	
 	//Nvic settings 
 	HAL_NVIC_SetPriority(TIM3_IRQn, TIM3_NVIC_PRIORITY, 0);
@@ -67,7 +66,11 @@ void TIM3_IRQHandler(void)
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim3, TIM_SR_UIF);	
 		
+		TIM3 -> ARR = 340 - 1;
+		
 		led_cnt++;
+		
+		//if(!(led_cnt % 5)) bmi160ReadAcc(&x , &y , &z);
 		
 		if(charge_flag == 0)
 		{

@@ -11,12 +11,12 @@ volatile uint16_t cnt_uart = 0;
 volatile uint16_t nmea_size = 0;
 volatile char buf_uart[1000];
 //GPS NMEA FLAGS
-volatile uint8_t fix_flag = 0;
+
 volatile uint8_t gga_flag = 0;
 volatile uint8_t vtg_flag = 0;
 
 //Gps Structure
-gps_data gps_nmea;
+volatile gps_data gps_nmea;
 
 //FatFS variables
 FIL file;
@@ -25,6 +25,8 @@ DIR folder;
 
 //FatFs flags
 uint8_t mkdir_flag = 0;
+
+extern volatile uint8_t no_motion_flag;
 
 /**
   * @brief  Uart for GPS init
@@ -129,8 +131,34 @@ void UART4_IRQHandler(void)
 		{
 			vtg_flag = 0;
 			nmea_size = cnt_uart;
-			analyzeGPS();
+			
+			analyzeGPS();  //20 [ms]
+			
+			if(no_motion_flag)
+			{
+				if(gps_nmea.fix_flag == 1)
+				{				
+					no_motion_flag = 0;
+					
+					serviceUartWriteS("\r\nNo motion and fix = 1");
+					setAnyMotionInt();
+					StandByMode();
+				}
+				else gps_nmea.no_fix_cnt++;
+				
+				if(gps_nmea.no_fix_cnt == 10)
+				{
+					no_motion_flag = 0;
+					gps_nmea.no_fix_cnt = 0;
+					
+					serviceUartWriteS("\r\nNo_FIX_CNT = 10");
+					setAnyMotionInt();
+					StandByMode();
+				}
+			}
 		}
+		
+		serviceUartWrite(buf_uart[cnt_uart]);
 		
 		cnt_uart++;
 		if(cnt_uart == 999) cnt_uart = 0;
@@ -151,7 +179,7 @@ void analyzeGPS(void)
 		//Find GGA massage
 		if((buf_uart[cnt_for - 2] == 'G') && (buf_uart[cnt_for - 1] == 'G') && (buf_uart[cnt_for] == 'A'))
 		{		
-			memset(gps_nmea.UTC_time , 0 , 9);
+			memset((void *)gps_nmea.UTC_time , 0 , 9);
 			//Find UTC_time
 			for(cn = 0 ; cn < 8 ; cn++)
 			{
@@ -201,10 +229,10 @@ void analyzeGPS(void)
 				{
 					if(buf_uart[cnt_for + cn + 2] == '1')
 					{
-						fix_flag = 1;
+						gps_nmea.fix_flag = 1;
 						break;
 					}
-					else fix_flag = 0;
+					else gps_nmea.fix_flag = 0;
 				}
 			} 
 					
@@ -241,8 +269,10 @@ void analyzeGPS(void)
 	
 	cnt_uart = 0;
 	
+	// saveGpsToSd + memset = 3.8 [ms]
 	if(gps_nmea.date[1] != NULL) saveGpsToSD();
 	memset((void *)buf_uart , 0 , sizeof(buf_uart));
+	
 	
 }//end void analyzeGPS(void)
 

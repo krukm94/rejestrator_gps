@@ -26,6 +26,8 @@ volatile float filteredData;
 volatile uint8_t threshold_flag;
 volatile uint8_t threshold_detection;
 volatile uint8_t threshold_cnt;
+
+volatile uint8_t no_motion_flag;
 									
 char print_acc[80];
 
@@ -38,7 +40,7 @@ float acc_lsb;
 extern FIL file;
  
 //GPS variables
-extern gps_data gps_nmea;
+extern volatile gps_data gps_nmea;
 
 /**
   * @brief  Initialization BMI160
@@ -150,7 +152,7 @@ void bmi160Init(void)
 	//Set No Motion interrupt
 	setNoMotionInt();
 	
-	fifoConfig();
+	//fifoConfig();
 }
 
 /**
@@ -294,9 +296,13 @@ void setSigMotionInt(void)
 void setAnyMotionInt(void)
 {
 	uint8_t int_motion1 	= 0x20;
+	uint8_t int_reset     = 0xB1;
 	uint8_t int_ctrl 			= 0x08;
 	uint8_t int_en0				= 0x07;
 	uint8_t int_map0			= 0x04;
+	
+	//Reset interrupt 
+	bmi160Write(BMI160_CMD , &int_reset , 1);
 	
 	//set ant motion int config
 	bmi160Write(BMI160_INT_MOTION1 , &int_motion1 , 1);
@@ -317,12 +323,12 @@ void setAnyMotionInt(void)
 void setNoMotionInt(void)
 {
 	uint8_t int_reset = 0xB1;
-	uint8_t motion0	 	= 0x40;
+	uint8_t motion0	 	= 0x40;  //0x40 //Duration of no motion int 10 [s]
 	uint8_t motion2 	= 0x46;
 	uint8_t motion3 	= 0x01;
 	uint8_t ctrl    	= 0x08;
 	uint8_t map0    	= 0x08;
-	uint8_t en0     	= 0x07;
+	uint8_t en2     	= 0x07;
 	
 	//interrupt reset
 	bmi160Write(BMI160_CMD , &int_reset , 1);
@@ -343,22 +349,37 @@ void setNoMotionInt(void)
 	bmi160Write(BMI160_INT_MAP0 , &map0 , 1);
 	
 	//set no motion interrup enable
-	bmi160Write(BMI160_INT_EN0 , &en0 , 1);
+	bmi160Write(BMI160_INT_EN2 , &en2 , 1);
 }
 
+
 /**
-  * @brief  Interrupt function, it's call when interrupts occurs
+  * @brief  No Motion Detected
   */
-void bmi160IntFunc(void)
+void bmi160IntFromInt1(void)
 {
-	uint8_t read = 0;
-	bmi160Read(BMI160_INT_STATUS1 , &read , 1);
+	uint8_t read[2];
+	uint8_t int_reset = 0xB1;
 	
-	if(read & 0x80)
+	bmi160Read(BMI160_INT_STATUS0 , read , 2);
+	
+	//reset int
+	bmi160Write(BMI160_CMD , &int_reset , 1);
+	
+	serviceUartWriteS("\r\nBmi160 Interrupt");
+	
+	if(read[1] & 0x80)		//noMotion Int
 	{
+		serviceUartWriteS("\r\n No Motion Interrupt");
 		setAnyMotionInt();
-		
-		//StandByMode();
+		no_motion_flag = 1;
+	}
+	
+	if(read[0] & 0x04)		//anyMotionInt
+	{
+		serviceUartWriteS("\r\n Any motion interrupt");
+		setNoMotionInt();
+		no_motion_flag = 0;
 	}
 }
 
@@ -371,7 +392,6 @@ void fifoConfig(void)
 	
 	//Set enable Fifo for acc in header les mode.
 	bmi160Write(BMI160_FIFO_CONFIG1 , &fifo_config , 1);
-	
 }
 
 /**
@@ -462,6 +482,7 @@ void tim_4_init(void)
 	serviceUartWriteS("\n\r#TIM4 INIT OK");
 }
 
+
 /**
   * @brief  Timer 4 interrupt function
 */
@@ -472,9 +493,7 @@ void TIM4_IRQHandler(void)
 	if(__HAL_TIM_GET_FLAG(&tim4, TIM_SR_UIF))			
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_UIF); 
-		timeMeasPinHigh();
 		bmi160FifoAccRead();  
-		timeMeasPinLow();
 	}
 	
 	/* CC1 INTERUPT */
@@ -526,7 +545,7 @@ void TIM4_IRQHandler(void)
 		if(threshold_detection == 0x01)
 		{
 			threshold_detection = 0x00;
-			sprintf(folder_buf , "SD:/%s/ACC", gps_nmea.date);
+			sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
 			
 			if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
 			{
@@ -553,12 +572,13 @@ void TIM4_IRQHandler(void)
 	}
 	
 }
+
+
 /**
   * @brief  Srednia kroczaca
   * @param  wynik = new sample
 	*   			sre = variable to save result
   */
-
 float sre(float wynik)
 {
 	srednia = srednia * dt;
