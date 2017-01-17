@@ -17,7 +17,7 @@ SPI_HandleTypeDef spi1;
 TIM_HandleTypeDef			tim4;
 
 //Variables for avrage filter
-float srednia = 0.9;
+float average = 0.9;
 uint16_t dt   = 10;
 
 //Variables for Acc data
@@ -27,7 +27,14 @@ volatile uint8_t threshold_flag;
 volatile uint8_t threshold_detection;
 volatile uint8_t threshold_cnt;
 
+
 volatile uint8_t no_motion_flag;
+
+extern volatile uint8_t gps_done_flag;
+volatile uint8_t acc_done_flag;
+
+extern volatile uint8_t go_to_sleep_mode;
+					
 									
 char print_acc[80];
 
@@ -152,7 +159,9 @@ void bmi160Init(void)
 	//Set No Motion interrupt
 	setNoMotionInt();
 	
-	//fifoConfig();
+	fifoConfig();
+	
+	tim_4_init();
 }
 
 /**
@@ -295,7 +304,7 @@ void setSigMotionInt(void)
   */
 void setAnyMotionInt(void)
 {
-	uint8_t int_motion1 	= 0x20;
+	uint8_t int_motion1 	= 0x40; //0x40 = 64 (64 * 15.63 = 1000mg) Threshold
 	uint8_t int_reset     = 0xB1;
 	uint8_t int_ctrl 			= 0x08;
 	uint8_t int_en0				= 0x07;
@@ -323,8 +332,8 @@ void setAnyMotionInt(void)
 void setNoMotionInt(void)
 {
 	uint8_t int_reset = 0xB1;
-	uint8_t motion0	 	= 0x40;  //0x40 //Duration of no motion int 10 [s]
-	uint8_t motion2 	= 0x46;
+	uint8_t motion0	 	= 0x40;  //0x40 Duration of no motion int 10 [s]
+	uint8_t motion2 	= 0x3D;	 //0x3D = 61 ( 61 * 15.63 mg = 950 mg) Threshold lvl
 	uint8_t motion3 	= 0x01;
 	uint8_t ctrl    	= 0x08;
 	uint8_t map0    	= 0x08;
@@ -383,12 +392,21 @@ void bmi160IntFromInt1(void)
 	}
 }
 
+
 /**
   * @brief  Configuration of Fifo
   */
 void fifoConfig(void)
 {
+	uint8_t int_reset = 0xB1;
+	uint8_t bmi160_fifo_flush = 0xB0;
 	uint8_t fifo_config = 0x40;
+	
+	//reset int
+	bmi160Write(BMI160_CMD , &int_reset , 1);
+	
+	//Flush fifo
+	bmi160Write(BMI160_CMD , &bmi160_fifo_flush , 1);
 	
 	//Set enable Fifo for acc in header les mode.
 	bmi160Write(BMI160_FIFO_CONFIG1 , &fifo_config , 1);
@@ -457,20 +475,10 @@ void tim_4_init(void)
 	tim4.Init.Prescaler = 2000 - 1;
 	tim4.Init.Period = 	8500 - 1;		//4 Hz
 	
-	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_1 , 1700 - 1);	//50ms  after update
-	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_2 , 3400 - 1);	//100ms after update
-	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_3 , 5100 - 1);  //150ms after update
-	__HAL_TIM_SET_COMPARE(&tim4 , TIM_CHANNEL_4 , 6800 - 1);  //200ms	after update
-	
 	HAL_NVIC_SetPriority(TIM4_IRQn, TIM4_NVIC_PRIORITY , 0);
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
 	
 	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_UPDATE);
-	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC1);
-	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC2);
-	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC3);
-	__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_CC4);
-	
 	
 	bmi160Write(BMI160_CMD , &bmi160_fifo_flush , 1);
 	
@@ -482,95 +490,79 @@ void tim_4_init(void)
 	serviceUartWriteS("\n\r#TIM4 INIT OK");
 }
 
-
 /**
   * @brief  Timer 4 interrupt function
 */
 void TIM4_IRQHandler(void)
 {
 	/* UPDATE INTERRUPT */
-	// 300 [us]
 	if(__HAL_TIM_GET_FLAG(&tim4, TIM_SR_UIF))			
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_UIF); 
-		bmi160FifoAccRead();  
+	
+		bmi160BurstRead();
 	}
 	
-	/* CC1 INTERUPT */
-	// 138 [us]
-	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC1IF))	
+}
+
+/**
+  * @brief  Read from fifo, analyze, and save to SD
+  */
+void bmi160BurstRead(void)
+{
+	uint16_t cnt;
+	char folder_buf[40];
+	
+	acc_done_flag = 0;
+	
+	bmi160FifoAccRead();  // ok 300 [us]
+	
+	bmi160ResultG();      // ok 138 [us]
+	
+	//Srednia kroczaca
+	for(cnt = 0 ; cnt < acc.acc_g_size ; cnt++) // 45 [us]
 	{		
-		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_CC1IF); 
+		acc.acc_g_sre[cnt] = sre(acc.acc_g[cnt]);
+		rawData = acc.acc_g[cnt];
+		filteredData = acc.acc_g_sre[cnt];
 		
-		bmi160ResultG();
+		if(filteredData > ((float)1.0)) threshold_flag++;
+		else threshold_flag = 0x00;
 		
-	}
-	
-	/* CC2 INTERRUPY */
-	// 45 [us]
-	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC2IF))	
-	{
-		uint16_t cnt;
-		
-		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC2IF);
-
-		for(cnt = 0 ; cnt < acc.acc_g_size ; cnt++)
-		{		
-			acc.acc_g_sre[cnt] = sre(acc.acc_g[cnt]);
-			rawData = acc.acc_g[cnt];
-			filteredData = acc.acc_g_sre[cnt];
-			
-			if(filteredData > ((float)1.3)) threshold_flag++;
-			else threshold_flag = 0x00;
-			
-			if(threshold_flag == 3)
-			{
-				threshold_flag = 0;
-				threshold_detection = 0x01;
-				threshold_cnt = cnt;
-			}
-			else threshold_detection = 0;
-		}
-
-	}
-	
-	/* CC3 INTERRUPT */	
-	// 0.8 [us]
-	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC3IF))	
-	{
-		char folder_buf[40];
-		
-		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC3IF);
-	
-		if(threshold_detection == 0x01)
+		if(threshold_flag == 2)
 		{
-			threshold_detection = 0x00;
-			sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
+			threshold_flag = 0;
+		//	threshold_detection = 0x01;
+			threshold_cnt = cnt;
+		}
+		else threshold_detection = 0;
+	}
+	
+	//save data to SD  									// 0.8 [us]
+	if(threshold_detection == 0x01)
+	{
+		threshold_detection = 0x00;
+		sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
+		
+		if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
+		{
+			f_lseek(&file , f_size(&file));
 			
-			if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
-			{
-				f_lseek(&file , f_size(&file));
-				
-				sprintf(print_acc , "G: %f" , acc.acc_g_sre[threshold_cnt]);
-				f_printf(&file , "\r\n Time: %s Acc %s Lat: %s Lon: %s" , 
-				gps_nmea.UTC_time , print_acc , gps_nmea.latitude , gps_nmea.longitude);
-				
-				f_close(&file);
-			}
+			sprintf(print_acc , "G: %f" , acc.acc_g_sre[threshold_cnt]);
+			f_printf(&file , "\r\n\r\n---> Motion: %s Time: %s  Lat: %s Lon: %s>>  \r\n\r\n" , 
+			 print_acc , gps_nmea.UTC_time , gps_nmea.latitude , gps_nmea.longitude);
+			
+			f_close(&file);
 		}
 	}
 	
-	/* CC4 INTERRUPT */
-	// 5.8 [us]
-	if(__HAL_TIM_GET_FLAG(&tim4 , TIM_SR_CC4IF))	
-	{
-		__HAL_TIM_CLEAR_FLAG(&tim4 , TIM_SR_CC4IF);
-		
+		//Flush bufers 									// 5.8 [us]
 		memset(acc.acc_fifo_read , 0 , sizeof(acc.acc_fifo_read));
 		memset(acc.acc_g , 0 , sizeof(acc.acc_g));
 		memset(acc.acc_g_sre , 0 , sizeof(acc.acc_g_sre));
-	}
 	
+	acc_done_flag = 1;
+	if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;
 }
 
 
@@ -579,11 +571,11 @@ void TIM4_IRQHandler(void)
   * @param  wynik = new sample
 	*   			sre = variable to save result
   */
-float sre(float wynik)
+float sre(float sample)
 {
-	srednia = srednia * dt;
-	srednia = srednia + wynik;
-	srednia = srednia / (dt + 1);
+	average = average * dt;
+	average = average + sample;
+	average = average / (dt + 1);
 	
-	return srednia;
+	return average;
 }

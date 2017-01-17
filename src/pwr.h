@@ -9,15 +9,17 @@
 #include "init.h"
 
 void pwrInit(void);
-void tim_15_init(void);
-void StandByMode(void);
+void adcAkuInit(void);
+void tim_3_init(void);
 
-void StopMode0(void);
 void StopMode2(void);
 
 void SleepMode(void);
+void enterToSleepMode(uint32_t Regulator);
 
 void saveLog(char *s);
+
+float sreAdc(float sample);
 
 
 #endif //__pwr_H_

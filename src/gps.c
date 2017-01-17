@@ -6,22 +6,37 @@
 
 UART_HandleTypeDef  gps_uart;
 
+volatile uint8_t led_cnt;
+
+//GPS variables
 volatile uint8_t gpsRecive;
 volatile uint16_t cnt_uart = 0;
 volatile uint16_t nmea_size = 0;
 volatile char buf_uart[1000];
-//GPS NMEA FLAGS
 
+//GPS NMEA FLAGS
 volatile uint8_t gga_flag = 0;
 volatile uint8_t vtg_flag = 0;
+
+volatile uint8_t gps_done_flag;
+extern volatile uint8_t acc_done_flag;
+volatile uint8_t analyze_done_flag;
+
+volatile uint8_t analyze_flag;
+
+//PWR FLAGS AND VARIABLES
+extern volatile uint8_t go_to_stop2_mode;
+extern volatile uint8_t go_to_sleep_mode;
+
+extern volatile uint8_t low_aku_voltage;	
+uint8_t led_aku_cnt;
 
 //Gps Structure
 volatile gps_data gps_nmea;
 
 //FatFS variables
-FIL file;
-FRESULT fres;
-DIR folder;
+extern FATFS FS;
+extern FIL file;
 
 //FatFs flags
 uint8_t mkdir_flag = 0;
@@ -39,8 +54,15 @@ void gpsUartInit(void)
 	__HAL_RCC_UART4_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOC_CLK_ENABLE();
 	
 	//GPIO INIT
+	//NRESET
+	gpio.Pin = GPS_NRESET_PIN;
+	gpio.Mode = GPIO_MODE_OUTPUT_PP;
+	gpio.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(GPS_NRESET_PORT , &gpio);
+	
 	//PWR for FIRRFLY
 	gpio.Pin = GPS_PWR_PIN;
 	gpio.Mode = GPIO_MODE_OUTPUT_PP;
@@ -61,12 +83,7 @@ void gpsUartInit(void)
 	gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	gpio.Alternate = GPIO_AF8_UART4;
 	HAL_GPIO_Init(GPS_UART_RX_PORT , &gpio);
-	
-	//PPS 
-	gpio.Pin = GPS_PPS_PIN;
-	gpio.Mode = GPIO_MODE_IT_RISING;
-	gpio.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(GPS_PPS_PORT , &gpio);
+
 	
 	gps_uart.Instance = GPS_UART_INSTANCE;
 	gps_uart.Init.BaudRate = GPS_UART_BAUDRATE;
@@ -90,31 +107,24 @@ void gpsUartInit(void)
 		
 	serviceUartWriteS("\n\r#GPS UART INIT OK");
 	
+	LL_GPIO_SetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
 	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
+	
+	HAL_Delay(10);
+
+//	HAL_Delay(1);
+//	LL_GPIO_ResetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
+//	HAL_Delay(1);
+//	LL_GPIO_SetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
+	
+//	HAL_Delay(2000);
+//	gpsUartWriteS("$PMTK220,100*2F\r\n");
+//	gpsUartWriteS("$PMTK251,38400*27F\r\n");
 	
 	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
 	
-	gps_nmea.date[0] = '0'; //Set default date to nmea
-	gps_nmea.date[1] = '1';
-	gps_nmea.date[2] = '.';
-	gps_nmea.date[2] = '0';
-	gps_nmea.date[2] = '1';
-	gps_nmea.date[2] = '.';
-	gps_nmea.date[2] = '1';
-	gps_nmea.date[2] = '7';
 }
 
-/**
-  * @brief  EXTI1 Interrupt
-  */
-void EXTI1_IRQHandler(void)
-{
-	if(__HAL_GPIO_EXTI_GET_IT(GPS_PPS_PIN) != RESET)
-  {
-		__HAL_GPIO_EXTI_CLEAR_IT(GPS_PPS_PIN);
-		
-	}
-}
 
 /**
   * @brief  UART4 Inetrrupt
@@ -125,14 +135,39 @@ void UART4_IRQHandler(void)
 	{
 		buf_uart[cnt_uart] = GPS_UART_INSTANCE -> RDR;
 		
+		gps_done_flag = 0;
+		
+		//Led Blinking
+		if(gps_nmea.fix_flag) ledOn(3);
+		else
+		{
+			led_cnt++;
+			if(led_cnt == 3)
+			{
+				led_cnt = 0;
+				ledOn(3);
+			}
+		}
+		
+		if(low_aku_voltage)
+		{
+			led_aku_cnt++;
+			
+			if(led_aku_cnt == 3)
+			{
+				led_aku_cnt = 0;
+				ledOn(1);
+			}
+		}
+		
 		if((buf_uart[cnt_uart - 2] == 'V') && (buf_uart[cnt_uart - 1] == 'T') && (buf_uart[cnt_uart] == 'G')) vtg_flag = 1;
 
-		if((vtg_flag == 1) && (buf_uart[cnt_uart] == '\r')) 
+		if((vtg_flag == 1) && (buf_uart[cnt_uart] == '\n')) 
 		{
 			vtg_flag = 0;
 			nmea_size = cnt_uart;
 			
-			analyzeGPS();  //20 [ms]
+			analyze_flag = 1;
 			
 			if(no_motion_flag)
 			{
@@ -142,7 +177,8 @@ void UART4_IRQHandler(void)
 					
 					serviceUartWriteS("\r\nNo motion and fix = 1");
 					setAnyMotionInt();
-					StandByMode();
+				
+					go_to_stop2_mode = 1;
 				}
 				else gps_nmea.no_fix_cnt++;
 				
@@ -153,15 +189,23 @@ void UART4_IRQHandler(void)
 					
 					serviceUartWriteS("\r\nNo_FIX_CNT = 10");
 					setAnyMotionInt();
-					StandByMode();
+			
+					go_to_stop2_mode = 1;
 				}
 			}
+			
+			gps_done_flag = 1;
 		}
 		
 		serviceUartWrite(buf_uart[cnt_uart]);
 		
 		cnt_uart++;
 		if(cnt_uart == 999) cnt_uart = 0;
+		
+		ledOff(3);
+		ledOff(1);
+		
+		if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;
 	}
 }
 
@@ -173,6 +217,8 @@ void analyzeGPS(void)
 {
 	uint16_t cnt_for,cnt_for2,cnt_lat;
 	uint8_t cn, cn_buf = 0 , comma = 0;
+	
+	analyze_done_flag = 0;
 	
 	for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++)
 	{
@@ -191,36 +237,36 @@ void analyzeGPS(void)
 				}
 			}
 			
-			//Find Latitude
-			for(cn = 0 ; cn < 60 ; cn++)
-			{
-				if(buf_uart[cnt_for + cn] == ',') comma++;
-					
-				if(comma == 2)
-				{
-					for(cnt_lat = 0 ; cnt_lat < 9 ; cnt_lat++)
-					{
-						if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
-						gps_nmea.latitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
-					}
-				
-					if(comma == 3) gps_nmea.latitude[0] = buf_uart[cnt_for + cn + 1];	
-					
-					if(comma == 4)
-					{
-						for(cnt_lat = 0 ; cnt_lat < 10 ; cnt_lat++)
-						{
-							if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
-							gps_nmea.longitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
-						}
-					}
-					if(comma == 5)
-					{
-						gps_nmea.longitude[0] = buf_uart[cnt_for + cn + 1];	
-						break;
-					}	
-				}
-			}
+//			//Find Latitude
+//			for(cn = 0 ; cn < 60 ; cn++)
+//			{
+//				if(buf_uart[cnt_for + cn] == ',') comma++;
+//					
+//				if(comma == 2)
+//				{
+//					for(cnt_lat = 0 ; cnt_lat < 9 ; cnt_lat++)
+//					{
+//						if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
+//						gps_nmea.latitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
+//					}
+//				
+//					if(comma == 3) gps_nmea.latitude[0] = buf_uart[cnt_for + cn + 1];	
+//					
+//					if(comma == 4)
+//					{
+//						for(cnt_lat = 0 ; cnt_lat < 10 ; cnt_lat++)
+//						{
+//							if(buf_uart[cnt_for + cn + 1 + cnt_lat] == ',') break;
+//							gps_nmea.longitude[cnt_lat + 1] = buf_uart[cnt_for + cn + 1 + cnt_lat];
+//						}
+//					}
+//					if(comma == 5)
+//					{
+//						gps_nmea.longitude[0] = buf_uart[cnt_for + cn + 1];	
+//						break;
+//					}	
+//				}
+//			}
 			
 			//Check FIX FLAG
 			for(cn=0 ; cn <50 ; cn++)
@@ -270,10 +316,10 @@ void analyzeGPS(void)
 	cnt_uart = 0;
 	
 	// saveGpsToSd + memset = 3.8 [ms]
-	if(gps_nmea.date[1] != NULL) saveGpsToSD();
+	if(gps_nmea.date[1] != NULL && gps_nmea.fix_flag == 1) saveGpsToSD();
 	memset((void *)buf_uart , 0 , sizeof(buf_uart));
 	
-	
+	analyze_done_flag = 1;
 }//end void analyzeGPS(void)
 
 
@@ -284,26 +330,28 @@ void saveGpsToSD(void)
 {
 	char folder_buf[20];
 	uint16_t cnt_for;
-	
-	__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
+
+	f_mount(&FS, "SD:", 1);
 	
 	sprintf(folder_buf , "SD:/%s" , gps_nmea.date);
 	
 	if((f_stat(folder_buf , NULL) != FR_OK)) f_mkdir(folder_buf);
 		
-	sprintf(folder_buf , "SD:/%s/GPS", gps_nmea.date);
+	sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
 	
 	if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
 	{
 		f_lseek(&file , f_size(&file));
-		f_printf(&file , "\r\nTIME: %s\r\n", gps_nmea.UTC_time);	
+		f_printf(&file , "\r\n\r\n <<DATA: %s TIME: %s>>\r\n\r\n", gps_nmea.date ,gps_nmea.UTC_time);	
 		
 		for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++) f_putc(buf_uart[cnt_for] , &file);
 		
 		f_close(&file);
 	}
 	
-	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
+	//f_mount(NULL , "SD:", 1);
+	//SD_DeInit();
+	
 }
 
 

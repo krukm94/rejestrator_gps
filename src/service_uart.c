@@ -44,8 +44,8 @@ void serviceUartInit(void)
 	service_uart.Init.OverSampling = UART_OVERSAMPLING_16;
 	service_uart.Init.OneBitSampling = UART_ONEBIT_SAMPLING_DISABLED;
 
-	HAL_NVIC_SetPriority(SERVICE_UART_IRQn_NAME, SERVICE_UART_NVIC_PRIORITY , 0);
-  HAL_NVIC_EnableIRQ(SERVICE_UART_IRQn_NAME);
+//	HAL_NVIC_SetPriority(SERVICE_UART_IRQn_NAME, SERVICE_UART_NVIC_PRIORITY , 0);
+ // HAL_NVIC_EnableIRQ(SERVICE_UART_IRQn_NAME);
 	
 	if(HAL_UART_Init(&service_uart))
 	{

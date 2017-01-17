@@ -58,6 +58,8 @@ extern volatile uint32_t system_cnt;
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 extern TIM_HandleTypeDef		tim3;
+extern TIM_HandleTypeDef		tim4;
+
 extern UART_HandleTypeDef 	service_uart;
 
 extern SD_HandleTypeDef 		uSdHandle;
@@ -65,7 +67,10 @@ extern SD_CardInfo 					uSdCardInfo;
 
 extern UART_HandleTypeDef  gps_uart;
 
-extern volatile uint8_t charge_flag;
+
+extern volatile uint8_t gps_done_flag;
+extern volatile uint8_t acc_done_flag;
+
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -174,15 +179,9 @@ void SysTick_Handler(void)
 */
 void OTG_FS_IRQHandler(void)
 {
-  /* USER CODE BEGIN OTG_FS_IRQn 0 */
-
-  /* USER CODE END OTG_FS_IRQn 0 */
 
   HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);  // the longes 5.3 [ms]
 	
-  /* USER CODE BEGIN OTG_FS_IRQn 1 */
-
-  /* USER CODE END OTG_FS_IRQn 1 */
 }
 
 
@@ -200,23 +199,6 @@ void SDMMC1_IRQHandler(void)
 
 
 /**
-* @brief This function handles DMA2 channel4 global interrupt.
-*/
-void DMA2_Channel4_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(uSdHandle.hdmarx);
-}
-
-
-/**
-* @brief This function handles DMA2 channel5 global interrupt.
-*/
-void DMA2_Channel5_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(uSdHandle.hdmatx); 
-}
-
-/**
 * @brief This function handes EXTI0 interrupt
 */
 void EXTI0_IRQHandler(void)
@@ -224,13 +206,7 @@ void EXTI0_IRQHandler(void)
 	if(__HAL_GPIO_EXTI_GET_IT(PWR_NCH_PIN) != RESET)
   {
 		__HAL_GPIO_EXTI_CLEAR_IT(PWR_NCH_PIN);
-		ledOff(1);
 		
-		if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NCH_PIN))
-		{
-			ledOn(1);
-			charge_flag = 1;
-		}
 	}
 }
 
@@ -258,36 +234,47 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	//NPGOOD LOW = GOOD RANGE OF VUSB
 	if(!HAL_GPIO_ReadPin(PWR_PORT , PWR_NPGOOD_PIN))
 	{
-		ledOn(4);
 		serviceUartWriteS("\r\n#NPGOOD_PIN (PB2) INTERRUPT");
 	}
 	
-	//BMI160 INTERRUPT PIN 1
-	if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
-	{
-		ledOn(1);
-		bmi160IntFromInt1();
-	}
-	
+	//Wake up from Pin 4
 	if(__HAL_PWR_GET_FLAG(PWR_FLAG_WUF4))
 	{
+		
 		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF4);
+		
+		if( HAL_PWREx_DisableLowPowerRunMode() != HAL_OK)
+		{
+			serviceUartWriteS("\r\n\r\n Warning! Disable Low Power Run Mode \r\n");
+		}
+		
+		HAL_PWR_DisableWakeUpPin(PWR_WAKEUP_PIN4);	
+		
+		//Enable Interrupts
+		__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
+
+		setNoMotionInt();
+		fifoConfig();	
+			
+		__HAL_TIM_ENABLE_IT(&tim4, TIM_IT_UPDATE);
+		
+		__HAL_TIM_ENABLE(&tim3);
+		__HAL_TIM_ENABLE_IT(&tim3, TIM_IT_UPDATE);	
+		
+		LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
+		
+		serviceUartWriteS("\r\n\r\n#PWR_FLAG_WUF4\r\n");
+
 	}	
-}
-
-
-/**
-  * @brief  Exti 4 IRq handler
-  */
-void EXTI4_IRQHandler(void)
-{
-	if(__HAL_GPIO_EXTI_GET_IT(BMI160_INT2) != RESET)
-  {
-		__HAL_GPIO_EXTI_CLEAR_IT(BMI160_INT2);
-		ledOn(4);
-
+	
+		//BMI160 INTERRUPT PIN 1
+	if(!HAL_GPIO_ReadPin(BMI160_PORT , BMI160_INT1))
+	{
+		bmi160IntFromInt1();
 	}
 }
+
+
 
 /******************************************************************************/
 /*                 STM32L4xx Peripherals Interrupt Handlers                   */

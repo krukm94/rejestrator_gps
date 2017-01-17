@@ -4,16 +4,13 @@
 
 #include "timer.h"
 
-TIM_HandleTypeDef			tim3;
-TIM_HandleTypeDef			tim2;
 
-volatile uint8_t led_cnt; 
-volatile uint8_t charge_flag;
-volatile uint8_t full_charge = 0;
+TIM_HandleTypeDef			tim2;
 
 //variables for tim2 (time measurment counter)
 volatile uint8_t tim2_updates;
-int16_t x,y,z;
+
+
 
 /**
   * @brief Init all timers 
@@ -25,87 +22,6 @@ void init_timers(void)
 	timeMeasPinHigh();
 	HAL_Delay(1);
 	timeMeasPinLow();
-	
-	tim_3_init();
-}
-
-
-/**
-  * @brief  Timer 3 Init function
-*/
-void tim_3_init(void){
-		
-	__HAL_RCC_TIM3_CLK_ENABLE();
-	
-	tim3.Instance = TIM3;
-	tim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-	tim3.Init.Prescaler = 20000 - 1;
-	tim3.Init.Period = 	340 - 1;
-	
-	//Nvic settings 
-	HAL_NVIC_SetPriority(TIM3_IRQn, TIM3_NVIC_PRIORITY, 0);
-	HAL_NVIC_EnableIRQ(TIM3_IRQn);
-	
-	if(HAL_TIM_Base_Init(&tim3) != HAL_OK){
-		errorFunc("\n\r#error:timer.c(20):HAL_TIM_Base_Init");
-	}
-	
-	__HAL_TIM_ENABLE(&tim3);
-	
-	__HAL_TIM_ENABLE_IT(&tim3, TIM_IT_UPDATE);
-	
-	serviceUartWriteS("\n\r#TIM3 INIT OK");
-}
-
-/**
-  * @brief  Timer 3 interrupt function
-*/
-void TIM3_IRQHandler(void)
-{		
-	if(__HAL_TIM_GET_FLAG(&tim3, TIM_SR_UIF))
-	{
-		__HAL_TIM_CLEAR_FLAG(&tim3, TIM_SR_UIF);	
-		
-		TIM3 -> ARR = 340 - 1;
-		
-		led_cnt++;
-		
-		//if(!(led_cnt % 5)) bmi160ReadAcc(&x , &y , &z);
-		
-		if(charge_flag == 0)
-		{
-			ledOff(3);
-			
-			if(!(led_cnt % 20)) 
-			{
-				ledOn(3);	
-				ledOff(1);
-				ledOff(4);
-			}
-		}	
-		
-		if(charge_flag == 1)
-		{
-			if(led_cnt < 50) ledOff(3);
-			if(led_cnt > 50) ledOn(3);
-			
-			if(led_cnt == 100) led_cnt = 0;
-			
-			if(HAL_GPIO_ReadPin(PWR_PORT , PWR_NCH_PIN) != RESET) 
-			{
-				charge_flag = 0;
-				full_charge = 1;
-			}
-		}
-		
-		if(full_charge == 1)
-		{
-			if(led_cnt < 50) ledOff(1);
-			if(led_cnt > 50) ledOn(1);
-			
-			if(led_cnt == 100) led_cnt = 0;
-		}
-	}
 }
 
 /**

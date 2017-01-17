@@ -133,7 +133,7 @@ DRESULT FATFS_SD_SDIO_disk_write(const BYTE *buff, DWORD sector, UINT count)
   * @param  None
   * @retval SD status
   */
-static uint8_t SD_Init(void) 
+uint8_t SD_Init(void) 
 { 
 	uint8_t SD_state = MSD_OK;
 
@@ -292,7 +292,7 @@ static void SD_MspInit(void)
   __HAL_RCC_SDMMC1_CLK_ENABLE();
 
 	 /* Enable DMA2 clocks */
-  __HAL_RCC_DMA2_CLK_ENABLE();
+  //__HAL_RCC_DMA2_CLK_ENABLE();
 	
   /* Enable GPIOs clock */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -391,6 +391,22 @@ static void SD_MspInit(void)
 }
 
 //===================================================================================
+//=========================================================================================
+void SD_DeInit(void)
+{
+	__HAL_RCC_SDMMC1_CLK_DISABLE();
+	
+	HAL_SD_DeInit(&uSdHandle);
+	
+	HAL_GPIO_DeInit(GPIOC, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11 
+                          |GPIO_PIN_12);
+
+  HAL_GPIO_DeInit(GPIOD, GPIO_PIN_2);
+	
+	HAL_NVIC_DisableIRQ(SDMMC1_IRQn);
+}
+
+
 static void SD_Detect_MspInit(void)
 {
 	GPIO_InitTypeDef gpio_struct;

@@ -32,23 +32,34 @@
 #include "fatfs_sd_sdio.h"
 #include "AK_stm32_fatfs.h"
 
+
+// >>>>>>>>>> NVIC PRIORITETS
 #define SYSTIC_NVIC_PRIOTITY       		 0 
 #define USB_NVIC_PRIORITY				 2
-#define SDMMC1_NVIC_PRIORITY       		 4
+#define SDMMC1_NVIC_PRIORITY       		 3
 
-#define UART_GPS_NVIC_PRIORITY     		 3
+#define UART_GPS_NVIC_PRIORITY     		 4
 
 #define TIM4_NVIC_PRIORITY				 8   // TIMER for BMI160 
 
 #define TIM2_NVIC_PRIORITY				 1	 //TIMER for time measurment
 
-#define TIM15_NVIC_PRIORITY				 10		//Timer for wakeup
+#define TIM15_NVIC_PRIORITY				 13		
 #define SERVICE_UART_NVIC_PRIORITY 		 11
 #define TIM3_NVIC_PRIORITY				 12   //TIMER FOR LED BLINKING
 
 #define EXTI2_NVIC_PRIORITY				 13
 #define EXTI0_NVIC_PRIORITY				 14
 #define EXTI1_NVIC_PRIORITY				 15
+
+
+// >>>>>>>>> LOW POWER MODES ENABLE
+#define STOP_MODE_ENABLE 					1
+#define SLEEP_MODE_ENABLE					1
+
+// >>>>>>>>> GPS MANAGMENT
+#define ANALYZE_GPS_ENABLE				1
+
 
 #define LED1_PORT 						GPIOC
 #define LED3_PORT 						GPIOB
@@ -77,7 +88,7 @@
 #define SERVICE_UART2_IRQn_NAME 		USART3_IRQn
 
 #define GPS_UART_INSTANCE				UART4
-#define GPS_UART_BAUDRATE 				9600
+#define GPS_UART_BAUDRATE 				38400
 #define GPS_UART_TX_PORT 				GPIOA
 #define GPS_UART_TX_PIN					GPIO_PIN_0
 #define GPS_UART_RX_PORT				GPIOA
@@ -138,6 +149,7 @@ void SystemClock_Config(void);
 
 void init(void);
 void errorFunc(char *error_massage);
+void saveLog(char *s);
 
 #endif //__INIT_H_
 

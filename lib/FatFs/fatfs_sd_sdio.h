@@ -43,11 +43,11 @@ DRESULT FATFS_SD_SDIO_disk_write(const BYTE *buff, DWORD sector, UINT count);
 
 //=========================================================================================
 /* Function declarations */
-uint8_t 					SD_DeInit(void);
 static void 			SD_MspInit(void);
 static void 			SD_Detect_MspInit(void);
 static uint8_t 		SD_IsDetected(void);
-static uint8_t SD_Init(void); 
+uint8_t 		SD_Init(void); 
+void 				SD_DeInit(void);
 
 uint8_t 	SD_ReadBlocks_DMA(uint32_t *pData, uint64_t ReadAddr, uint32_t BlockSize, uint32_t NumOfBlocks);
 uint8_t 	SD_WriteBlocks_DMA(uint32_t *pData, uint64_t WriteAddr, uint32_t BlockSize, uint32_t NumOfBlocks);

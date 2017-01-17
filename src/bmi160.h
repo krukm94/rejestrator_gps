@@ -75,8 +75,9 @@ void fifoConfig(void);
 void bmi160FifoAccRead(void);
 void bmi160ResultG(void);
 void tim_4_init(void);
+void bmi160BurstRead(void);
 
-float sre(float wynik);
+float sre(float sample);
 
 #endif //__bmi160_H_
 
