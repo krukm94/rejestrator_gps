@@ -9,30 +9,28 @@ UART_HandleTypeDef  gps_uart;
 volatile uint8_t led_cnt;
 
 //GPS variables
+volatile gps_data gps_nmea;
+
 volatile uint8_t gpsRecive;
 volatile uint16_t cnt_uart = 0;
 volatile uint16_t nmea_size = 0;
 volatile char buf_uart[1000];
 
+char buf_gps_fix[10000];
+uint16_t buf_gps_fix_cnt;
+
 //GPS NMEA FLAGS
-volatile uint8_t gga_flag = 0;
-volatile uint8_t vtg_flag = 0;
-
+volatile uint8_t gga_flag;
+volatile uint8_t vtg_flag;
 volatile uint8_t gps_done_flag;
-extern volatile uint8_t acc_done_flag;
-volatile uint8_t analyze_done_flag;
-
 volatile uint8_t analyze_flag;
+volatile uint8_t fix_flag_cnt;
 
 //PWR FLAGS AND VARIABLES
+uint8_t led_aku_cnt;
 extern volatile uint8_t go_to_stop2_mode;
 extern volatile uint8_t go_to_sleep_mode;
-
 extern volatile uint8_t low_aku_voltage;	
-uint8_t led_aku_cnt;
-
-//Gps Structure
-volatile gps_data gps_nmea;
 
 //FatFS variables
 extern FATFS FS;
@@ -41,7 +39,9 @@ extern FIL file;
 //FatFs flags
 uint8_t mkdir_flag = 0;
 
+//Motion sensing flag
 extern volatile uint8_t no_motion_flag;
+extern volatile uint8_t acc_done_flag;
 
 /**
   * @brief  Uart for GPS init
@@ -137,75 +137,21 @@ void UART4_IRQHandler(void)
 		
 		gps_done_flag = 0;
 		
-		//Led Blinking
-		if(gps_nmea.fix_flag) ledOn(3);
-		else
-		{
-			led_cnt++;
-			if(led_cnt == 3)
-			{
-				led_cnt = 0;
-				ledOn(3);
-			}
-		}
-		
-		if(low_aku_voltage)
-		{
-			led_aku_cnt++;
-			
-			if(led_aku_cnt == 3)
-			{
-				led_aku_cnt = 0;
-				ledOn(1);
-			}
-		}
-		
 		if((buf_uart[cnt_uart - 2] == 'V') && (buf_uart[cnt_uart - 1] == 'T') && (buf_uart[cnt_uart] == 'G')) vtg_flag = 1;
 
-		if((vtg_flag == 1) && (buf_uart[cnt_uart] == '\n')) 
+		if((vtg_flag == 1) && (buf_uart[cnt_uart] == '\r')) 
 		{
 			vtg_flag = 0;
 			nmea_size = cnt_uart;
 			
 			analyze_flag = 1;
-			
-			if(no_motion_flag)
-			{
-				if(gps_nmea.fix_flag == 1)
-				{				
-					no_motion_flag = 0;
-					
-					serviceUartWriteS("\r\nNo motion and fix = 1");
-					setAnyMotionInt();
-				
-					go_to_stop2_mode = 1;
-				}
-				else gps_nmea.no_fix_cnt++;
-				
-				if(gps_nmea.no_fix_cnt == 10)
-				{
-					no_motion_flag = 0;
-					gps_nmea.no_fix_cnt = 0;
-					
-					serviceUartWriteS("\r\nNo_FIX_CNT = 10");
-					setAnyMotionInt();
-			
-					go_to_stop2_mode = 1;
-				}
-			}
-			
-			gps_done_flag = 1;
 		}
 		
-		serviceUartWrite(buf_uart[cnt_uart]);
+		serviceUart2Write(buf_uart[cnt_uart]);
 		
 		cnt_uart++;
 		if(cnt_uart == 999) cnt_uart = 0;
 		
-		ledOff(3);
-		ledOff(1);
-		
-		if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;
 	}
 }
 
@@ -215,10 +161,32 @@ void UART4_IRQHandler(void)
 */
 void analyzeGPS(void)
 {
-	uint16_t cnt_for,cnt_for2,cnt_lat;
+	uint16_t cnt_for,cnt_for2;
 	uint8_t cn, cn_buf = 0 , comma = 0;
 	
-	analyze_done_flag = 0;
+	//Led Blinking  >>>>>>>>>>>
+	if(gps_nmea.fix_flag) ledOn(3);
+	else
+	{
+		led_cnt++;
+		if(led_cnt == 3)
+		{
+			led_cnt = 0;
+			ledOn(3);
+		}
+	}
+	
+	if(low_aku_voltage)
+	{
+		led_aku_cnt++;
+		
+		if(led_aku_cnt == 3)
+		{
+			led_aku_cnt = 0;
+			ledOn(1);
+		}
+	}
+	//Led Bloinking <<<<<<<<<<
 	
 	for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++)
 	{
@@ -315,11 +283,66 @@ void analyzeGPS(void)
 	
 	cnt_uart = 0;
 	
-	// saveGpsToSd + memset = 3.8 [ms]
-	if(gps_nmea.date[1] != NULL && gps_nmea.fix_flag == 1) saveGpsToSD();
-	memset((void *)buf_uart , 0 , sizeof(buf_uart));
 	
-	analyze_done_flag = 1;
+	//SAVE TO BUF OR SD >>>>>>>>>>>
+	if(gps_nmea.fix_flag)
+	{
+		uint16_t i = 0;
+		
+		fix_flag_cnt++;
+		
+		for(i = 0 ; i < nmea_size ; i++)
+		{
+			buf_gps_fix[buf_gps_fix_cnt] = buf_uart[i];
+			buf_gps_fix_cnt++;
+			
+			if(buf_gps_fix_cnt == sizeof(buf_gps_fix)) buf_gps_fix_cnt = 0;
+		}
+		memset((void *)buf_uart , 0 , sizeof(buf_uart));
+	}	
+	
+	if(fix_flag_cnt == 10)
+	{
+		fix_flag_cnt = 0;
+
+		saveGpsToSD();
+		
+		memset(buf_gps_fix , 0 , sizeof(buf_gps_fix));
+		buf_gps_fix_cnt = 0;
+	}
+	// SAVE TO BUF OR SD <<<<<<<<<<<<
+	
+	if(no_motion_flag)
+	{
+		if(gps_nmea.fix_flag == 1)
+		{				
+			no_motion_flag = 0;
+			
+			serviceUartWriteS("\r\nNo motion and fix = 1");
+			setAnyMotionInt();
+		
+			go_to_stop2_mode = 1;
+		}
+		else gps_nmea.no_fix_cnt++;
+		
+		if(gps_nmea.no_fix_cnt == 10)
+		{
+			no_motion_flag = 0;
+			gps_nmea.no_fix_cnt = 0;
+			
+			serviceUartWriteS("\r\nNo_FIX_CNT = 10");
+			setAnyMotionInt();
+	
+			go_to_stop2_mode = 1;
+		}
+	}
+	
+	ledOff(3);
+	ledOff(1);
+	
+	gps_done_flag = 1;
+
+	if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;
 }//end void analyzeGPS(void)
 
 
@@ -337,20 +360,20 @@ void saveGpsToSD(void)
 	
 	if((f_stat(folder_buf , NULL) != FR_OK)) f_mkdir(folder_buf);
 		
-	sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
+	sprintf(folder_buf , "SD:/%s/GPS", gps_nmea.date);
 	
 	if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
 	{
 		f_lseek(&file , f_size(&file));
 		f_printf(&file , "\r\n\r\n <<DATA: %s TIME: %s>>\r\n\r\n", gps_nmea.date ,gps_nmea.UTC_time);	
 		
-		for(cnt_for = 0 ; cnt_for < nmea_size ; cnt_for++) f_putc(buf_uart[cnt_for] , &file);
+		for(cnt_for = 0 ; cnt_for < buf_gps_fix_cnt ; cnt_for++) f_putc(buf_uart[cnt_for] , &file);
 		
 		f_close(&file);
 	}
 	
-	//f_mount(NULL , "SD:", 1);
-	//SD_DeInit();
+	f_mount(NULL , "SD:", 1);
+	SD_DeInit();
 	
 }
 

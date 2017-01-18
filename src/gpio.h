@@ -13,11 +13,15 @@ void 		ledOn(uint8_t led_nr);
 void 		ledOff(uint8_t led_nr);
 void		ledToggle(uint8_t led_nr);
 
-void 		ts3Sel_usbDetectPinInit(void);
+void spi2cs_timeMeasPinInit(void);
+void ts3Sel_usbDetectPinInit(void);
+void userButtonInit(void);
 
 void timeMeasPinHigh(void);
 void timeMeasPinLow(void);
 void timeMeasPinToggle(void);
-void spi2cs_timeMeasPinInit(void);
+
+void userButtonFunc(void);
+
 
 #endif  //__gpio_H__

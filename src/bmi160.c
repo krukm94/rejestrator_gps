@@ -20,34 +20,33 @@ TIM_HandleTypeDef			tim4;
 float average = 0.9;
 uint16_t dt   = 10;
 
-//Variables for Acc data
+//Variables for Acc variables and flass
 volatile float rawData;
 volatile float filteredData;
 volatile uint8_t threshold_flag;
 volatile uint8_t threshold_detection;
 volatile uint8_t threshold_cnt;
-
-
+volatile uint8_t bmi_read_flag;
 volatile uint8_t no_motion_flag;
-
-extern volatile uint8_t gps_done_flag;
 volatile uint8_t acc_done_flag;
+float acc_lsb;
+volatile acc_axis acc;	//Acc structure declaration
 
+//PWR flags
 extern volatile uint8_t go_to_sleep_mode;
 					
-									
+							
 char print_acc[80];
-
-//Acc structure declaration
-acc_axis acc;	
-
-float acc_lsb;
 
 //FatFS variables
 extern FIL file;
  
 //GPS variables
 extern volatile gps_data gps_nmea;
+extern volatile uint8_t gps_done_flag;
+
+extern char buf_gps_fix[10000];
+extern uint16_t buf_gps_fix_cnt;
 
 /**
   * @brief  Initialization BMI160
@@ -253,7 +252,7 @@ void setAccRange(uint8_t lsb)
 void bmi160ReadAcc(int16_t *acc_x , int16_t *acc_y , int16_t *acc_z)
 {
 	uint8_t read, read1 , read2;
-	bmi160Read( BMI160_ACC_X , acc.acc_buf , 6);
+	bmi160Read( BMI160_ACC_X , (uint8_t *)acc.acc_buf , 6);
 	
 	acc.acc_x = (acc.acc_buf[1] << 8) | acc.acc_buf[0];
 	acc.acc_y = (acc.acc_buf[3] << 8) | acc.acc_buf[2];
@@ -431,7 +430,7 @@ void bmi160FifoAccRead(void)
 	
 	acc.fifo_v = (acc.fifo_lvl/6);
 	
-	bmi160Read(BMI160_FIFO_DATA , acc.acc_fifo_read , acc.fifo_lvl );
+	bmi160Read(BMI160_FIFO_DATA , (uint8_t *)acc.acc_fifo_read , acc.fifo_lvl );
 }
 	
 /**
@@ -500,7 +499,9 @@ void TIM4_IRQHandler(void)
 	{
 		__HAL_TIM_CLEAR_FLAG(&tim4, TIM_SR_UIF); 
 	
-		bmi160BurstRead();
+		bmi160FifoAccRead();  // ok 300 [us]
+		bmi_read_flag = 1;
+		//
 	}
 	
 }
@@ -508,14 +509,11 @@ void TIM4_IRQHandler(void)
 /**
   * @brief  Read from fifo, analyze, and save to SD
   */
-void bmi160BurstRead(void)
+void bmi160Analyze(void)
 {
 	uint16_t cnt;
-	char folder_buf[40];
 	
 	acc_done_flag = 0;
-	
-	bmi160FifoAccRead();  // ok 300 [us]
 	
 	bmi160ResultG();      // ok 138 [us]
 	
@@ -532,34 +530,37 @@ void bmi160BurstRead(void)
 		if(threshold_flag == 2)
 		{
 			threshold_flag = 0;
-		//	threshold_detection = 0x01;
+			threshold_detection = 0x01;
 			threshold_cnt = cnt;
 		}
 		else threshold_detection = 0;
 	}
 	
-	//save data to SD  									// 0.8 [us]
+	//save data // 0.8 [us]
 	if(threshold_detection == 0x01)
 	{
+		uint8_t cnt = 0;
 		threshold_detection = 0x00;
-		sprintf(folder_buf , "SD:/%s/LOG", gps_nmea.date);
+	
+		sprintf(print_acc , "\r\n\r\n---> Motion: %f Time: %s>>  \r\n\r\n" , 
+			acc.acc_g_sre[threshold_cnt] , gps_nmea.UTC_time);
 		
-		if(f_open(&file, folder_buf , FA_OPEN_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
+		while(print_acc[cnt] != NULL)
 		{
-			f_lseek(&file , f_size(&file));
+			buf_gps_fix[buf_gps_fix_cnt] = print_acc[cnt];
 			
-			sprintf(print_acc , "G: %f" , acc.acc_g_sre[threshold_cnt]);
-			f_printf(&file , "\r\n\r\n---> Motion: %s Time: %s  Lat: %s Lon: %s>>  \r\n\r\n" , 
-			 print_acc , gps_nmea.UTC_time , gps_nmea.latitude , gps_nmea.longitude);
+			buf_gps_fix_cnt++;
+			cnt++;
 			
-			f_close(&file);
-		}
+			if((cnt == sizeof(print_acc)) || (print_acc[cnt] == NULL)) break;
+		}		
+
 	}
 	
 		//Flush bufers 									// 5.8 [us]
-		memset(acc.acc_fifo_read , 0 , sizeof(acc.acc_fifo_read));
-		memset(acc.acc_g , 0 , sizeof(acc.acc_g));
-		memset(acc.acc_g_sre , 0 , sizeof(acc.acc_g_sre));
+		memset((void *)acc.acc_fifo_read , 0 , sizeof(acc.acc_fifo_read));
+		memset((void *)acc.acc_g , 0 , sizeof(acc.acc_g));
+		memset((void *)acc.acc_g_sre , 0 , sizeof(acc.acc_g_sre));
 	
 	acc_done_flag = 1;
 	if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;

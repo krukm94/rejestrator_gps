@@ -64,7 +64,7 @@ void init(void)
 	HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
 	
 	serviceUartInit();
-	//serviceUart2Init();
+	serviceUart2Init();
 	
 	serviceUartWriteS("\n\r$$$$$$$$$$$$$\n\r\n\r-->REJESTRATOR GPS<--\n\r$ M.KRUK\n\r$ THIS IS SERVICE UART\n\r---------------------");
 	
@@ -73,8 +73,6 @@ void init(void)
 	pwrInit();
 	
 	f_mount(&FS, "SD:", 1);
-
-	MX_USB_DEVICE_Init();
 	
 	gpsUartInit();
 	
@@ -82,8 +80,9 @@ void init(void)
 	
 	//init_timers();
 	
-	//Nvic settings
-	//
+	///////////////
+	//Nvic for pins interrupts
+	///////////////
 	//Pin nCH (BQ24072)
 	HAL_NVIC_SetPriority(EXTI0_IRQn, EXTI0_NVIC_PRIORITY , 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
@@ -92,8 +91,15 @@ void init(void)
   HAL_NVIC_SetPriority(EXTI2_IRQn, EXTI2_NVIC_PRIORITY , 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 	
+	//Pin user button
+	HAL_NVIC_SetPriority(EXTI15_10_IRQn, EXTI15_NVIC_PRIORITY , 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+	
 	sprintf(print_buf , "\r\n-->System Start! Compilation Time: %s" , __TIME__);
-	//saveLog(print_buf);
+	saveLog(print_buf);
+	
+	f_mount(NULL , "SD:", 1);
+	SD_DeInit();
 }
 
 /** System Clock Configuration

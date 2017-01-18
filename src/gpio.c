@@ -4,6 +4,14 @@
 
 #include "gpio.h"
 
+//Handles
+extern  TIM_HandleTypeDef		tim4;
+extern  TIM_HandleTypeDef		tim3;
+
+extern UART_HandleTypeDef  gps_uart;
+
+extern FATFS FS;
+
 /**
   * @brief  Gpios init
   */
@@ -41,7 +49,9 @@ void gpioInit(void)
   LL_GPIO_SetOutputPin(MAINTAIN_PORT , MAINTAIN_PIN);
 	
 	//ts3Sel_usbDetectPinInit();
-	spi2cs_timeMeasPinInit();
+	//spi2cs_timeMeasPinInit();
+	
+	userButtonInit();
 	
 	serviceUartWriteS("\n\r#GPIO INIT OK");
 }
@@ -103,6 +113,23 @@ void ledToggle(uint8_t led_nr)
 	}
 }
 
+
+/**
+  * @brief  User button init
+  */
+void userButtonInit(void)
+{
+	GPIO_InitTypeDef gpio;
+	
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	
+	gpio.Pin = USER_BUTTON_PIN;
+	gpio.Mode = GPIO_MODE_IT_FALLING;
+	gpio.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(USER_BUTTON_PORT , &gpio);
+}
+
+
 /**
   * @brief  Init pin for ts3Srl /usb Detect Pin 
   */
@@ -161,4 +188,21 @@ void timeMeasPinLow(void)
 void timeMeasPinToggle(void)
 {
 	LL_GPIO_TogglePin(GPIOC , GPIO_PIN_4);
+}
+
+/**
+  * @brief  UserButtonFunc
+  */
+void userButtonFunc(void)
+{
+	//Take off interrups 
+	__HAL_TIM_DISABLE(&tim3);
+	__HAL_TIM_DISABLE_IT(&tim3, TIM_IT_UPDATE);
+	__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
+	__HAL_TIM_DISABLE_IT(&tim4, TIM_IT_UPDATE);
+	
+	ledOn(3);
+	
+	f_mount(&FS, "SD:", 1);
+	MX_USB_DEVICE_Init();
 }

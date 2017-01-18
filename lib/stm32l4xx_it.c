@@ -67,10 +67,10 @@ extern SD_CardInfo 					uSdCardInfo;
 
 extern UART_HandleTypeDef  gps_uart;
 
-
 extern volatile uint8_t gps_done_flag;
 extern volatile uint8_t acc_done_flag;
 
+extern volatile uint8_t user_button_flag;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -264,6 +264,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
 		
 		serviceUartWriteS("\r\n\r\n#PWR_FLAG_WUF4\r\n");
+		
+		
 
 	}	
 	
@@ -274,6 +276,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	}
 }
 
+
+//EXTI15_10 IRQ Handler
+void EXTI15_10_IRQHandler(void)
+{
+	if(__HAL_GPIO_EXTI_GET_IT(USER_BUTTON_PIN) != RESET)
+  {
+		__HAL_GPIO_EXTI_CLEAR_IT(USER_BUTTON_PIN);
+		user_button_flag = 1;
+	}
+
+}
 
 
 /******************************************************************************/

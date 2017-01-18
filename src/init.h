@@ -51,14 +51,21 @@
 #define EXTI2_NVIC_PRIORITY				 13
 #define EXTI0_NVIC_PRIORITY				 14
 #define EXTI1_NVIC_PRIORITY				 15
+#define EXTI15_NVIC_PRIORITY			 15
 
 
 // >>>>>>>>> LOW POWER MODES ENABLE
-#define STOP_MODE_ENABLE 					1
+#define STOP_MODE_ENABLE 					0
 #define SLEEP_MODE_ENABLE					1
 
 // >>>>>>>>> GPS MANAGMENT
 #define ANALYZE_GPS_ENABLE				1
+
+// >>>>>>>>> ACC MANAGMENT
+#define BMI160_DATA_OPERATIONS_ENABLE 1
+
+// >>>>>>>>> USER BUTTON MANAGMENT
+#define USER_BUTTON_ENABLE 				1
 
 
 #define LED1_PORT 						GPIOC
@@ -66,12 +73,13 @@
 #define LED4_PORT 						GPIOB
 #define MAINTAIN_PORT 					GPIOB
 
-
 #define LED1_PIN						GPIO_PIN_7
 #define LED3_PIN  						GPIO_PIN_1
 #define LED4_PIN						GPIO_PIN_11
 #define MAINTAIN_PIN					GPIO_PIN_9
 
+#define USER_BUTTON_PORT		GPIOA
+#define USER_BUTTON_PIN			GPIO_PIN_15
 
 #define SERVICE_UART_INSTANCE 			USART1
 #define SERVICE_UART_BAUDRATE 			921600

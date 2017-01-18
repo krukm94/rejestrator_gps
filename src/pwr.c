@@ -69,9 +69,9 @@ void pwrInit(void)
 	HAL_Delay(1);
 	LL_GPIO_ResetOutputPin(PWR_PORT , PWR_NCE_PIN);
 	
-	//adcAkuInit();
+	adcAkuInit();
 	
-	//tim_3_init();
+	tim_3_init();
 	
 	serviceUartWriteS("\n\r#PWR INIT OK");
 }
@@ -95,7 +95,7 @@ void StopMode2(void)
 	HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN4_LOW);
 	
 	//Take off interrups 
-	__HAL_TIM_ENABLE(&tim3);
+	__HAL_TIM_DISABLE(&tim3);
 	__HAL_TIM_DISABLE_IT(&tim3, TIM_IT_UPDATE);
 	__HAL_UART_DISABLE_IT(&service_uart , UART_IT_RXNE);
 	__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
@@ -160,7 +160,7 @@ void SleepMode(void)
 	
 	ledOff(1);
 	ledOff(3);
-	ledOff(4);
+	//ledOff(4);
 	
 	serviceUartWriteS("\r\n#Enter to  Sleep MODE   ");
 	
@@ -305,7 +305,7 @@ void TIM3_IRQHandler(void)
 		__HAL_TIM_CLEAR_FLAG(&tim3, TIM_SR_UIF);	
 		
 		tim3_cnt++;
-		
+		ledOn(4);
 		//Battery voltage measurment
 		if(!(tim3_cnt % 20))
 		{	
@@ -348,7 +348,6 @@ void TIM3_IRQHandler(void)
 			HAL_ADC_Start(&hadc1);
 		}
 		
-		ledOff(4);
 		//Check Flag
 		if(aku_discharge_flag)
 		{
