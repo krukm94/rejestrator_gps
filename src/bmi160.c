@@ -34,8 +34,7 @@ volatile acc_axis acc;	//Acc structure declaration
 
 //PWR flags
 extern volatile uint8_t go_to_sleep_mode;
-					
-							
+										
 char print_acc[80];
 
 //FatFS variables
@@ -472,7 +471,7 @@ void tim_4_init(void)
 	tim4.Instance = TIM4;
 	tim4.Init.CounterMode = TIM_COUNTERMODE_UP;
 	tim4.Init.Prescaler = 2000 - 1;
-	tim4.Init.Period = 	8500 - 1;		//4 Hz
+	tim4.Init.Period = 	8000 - 1;		//4 Hz
 	
 	HAL_NVIC_SetPriority(TIM4_IRQn, TIM4_NVIC_PRIORITY , 0);
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
@@ -501,6 +500,8 @@ void TIM4_IRQHandler(void)
 	
 		bmi160FifoAccRead();  // ok 300 [us]
 		bmi_read_flag = 1;
+		
+		
 		//
 	}
 	
@@ -564,6 +565,7 @@ void bmi160Analyze(void)
 	
 	acc_done_flag = 1;
 	if(acc_done_flag == 1 && gps_done_flag == 1) go_to_sleep_mode = 1;
+
 }
 
 

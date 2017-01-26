@@ -7,7 +7,9 @@
 
 ADC_HandleTypeDef hadc1;
 
-extern  TIM_HandleTypeDef		tim4;
+extern TIM_HandleTypeDef		tim2;
+extern TIM_HandleTypeDef		tim4;
+
 TIM_HandleTypeDef			tim3;
 volatile uint32_t tim3_cnt;
 
@@ -69,9 +71,9 @@ void pwrInit(void)
 	HAL_Delay(1);
 	LL_GPIO_ResetOutputPin(PWR_PORT , PWR_NCE_PIN);
 	
-	adcAkuInit();
+	//adcAkuInit();
 	
-	tim_3_init();
+	//tim_3_init();
 	
 	serviceUartWriteS("\n\r#PWR INIT OK");
 }
@@ -96,6 +98,7 @@ void StopMode2(void)
 	
 	//Take off interrups 
 	__HAL_TIM_DISABLE(&tim3);
+	
 	__HAL_TIM_DISABLE_IT(&tim3, TIM_IT_UPDATE);
 	__HAL_UART_DISABLE_IT(&service_uart , UART_IT_RXNE);
 	__HAL_UART_DISABLE_IT(&gps_uart , UART_IT_RXNE);
@@ -125,8 +128,14 @@ void StopMode2(void)
 	
 	//Cleat WUF4 flag
 	__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF4);
-	
+
+	disableClocks();
+
 	RCC -> CFGR |= (0 << 15);					//Set MSI as wakeup clock
+	
+	__HAL_RCC_SYSCLK_CONFIG(RCC_SYSCLKSOURCE_MSI);
+	__HAL_RCC_MSI_DISABLE();
+	__HAL_RCC_PLL_DISABLE();
 	
 	  /* Set Stop mode 2 */
   MODIFY_REG(PWR->CR1, PWR_CR1_LPMS, PWR_CR1_LPMS_STOP2);
@@ -145,6 +154,34 @@ void StopMode2(void)
 	{
 		serviceUartWriteS("\r\n\r\n Warning! Disable Low Power Run Mode \r\n");
 	}
+}
+
+/**
+  * @brief  Disable Clocks before enter to Stop Mode
+  */
+void disableClocks(void)
+{
+	__HAL_RCC_ADC_CLK_DISABLE();
+	__HAL_RCC_TIM3_CLK_DISABLE();
+	__HAL_RCC_TIM4_CLK_DISABLE();
+	__HAL_RCC_TIM2_CLK_DISABLE();
+	__HAL_RCC_UART4_CLK_DISABLE();
+	__HAL_RCC_USART1_CLK_DISABLE();
+	__HAL_RCC_SPI1_CLK_DISABLE();
+}
+
+/**
+  * @brief  ENable Clocks before enter to Stop Mode
+  */
+void enableClocks(void)
+{
+	__HAL_RCC_ADC_CLK_ENABLE();
+	__HAL_RCC_TIM3_CLK_ENABLE();
+	__HAL_RCC_TIM4_CLK_ENABLE();
+	__HAL_RCC_TIM2_CLK_ENABLE();
+	__HAL_RCC_UART4_CLK_ENABLE();
+	__HAL_RCC_USART1_CLK_ENABLE();
+	__HAL_RCC_SPI1_CLK_ENABLE();
 }
 
 /**
@@ -278,7 +315,7 @@ void tim_3_init(void)
 	tim3.Instance = TIM3;
 	tim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 	tim3.Init.Prescaler = 20000 - 1;
-	tim3.Init.Period = 	340 - 1;
+	tim3.Init.Period = 	320 - 1;		//10 Hz
 	
 	//Nvic settings 
 	HAL_NVIC_SetPriority(TIM3_IRQn, TIM3_NVIC_PRIORITY, 0);

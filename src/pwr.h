@@ -12,6 +12,9 @@ void pwrInit(void);
 void adcAkuInit(void);
 void tim_3_init(void);
 
+void disableClocks(void);
+void enableClocks(void);
+
 void StopMode2(void);
 
 void SleepMode(void);

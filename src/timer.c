@@ -34,7 +34,7 @@ void tim_2_init(void)
 	tim2.Instance = TIM2;
 	tim2.Init.CounterMode = TIM_COUNTERMODE_UP;
 	tim2.Init.Prescaler = 0;
-	tim2.Init.Period = 	68000000 - 1;									//Przerwania co 1 s
+	tim2.Init.Period = 	64000000 - 1;									//Przerwania co 1 s
 	
 	HAL_NVIC_SetPriority(TIM2_IRQn, TIM2_NVIC_PRIORITY, 0);
 	HAL_NVIC_EnableIRQ(TIM2_IRQn);

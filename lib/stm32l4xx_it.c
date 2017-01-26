@@ -243,12 +243,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		
 		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF4);
 		
+		__HAL_RCC_SYSCLK_CONFIG(RCC_SYSCLKSOURCE_PLLCLK);
+		__HAL_RCC_PLL_ENABLE();
+		
+		enableClocks();
+		
 		if( HAL_PWREx_DisableLowPowerRunMode() != HAL_OK)
 		{
 			serviceUartWriteS("\r\n\r\n Warning! Disable Low Power Run Mode \r\n");
 		}
 		
 		HAL_PWR_DisableWakeUpPin(PWR_WAKEUP_PIN4);	
+		
 		
 		//Enable Interrupts
 		__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);

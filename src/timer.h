@@ -7,7 +7,7 @@
 
 #include "init.h"
 
-#define timeLSB			((float )14.70588235294) // [ns]  timeLSB = 1/68M = 14.7 [ns]
+#define timeLSB			((float )15.625) // [ns]  timeLSB = 1/64M = 15.6 [ns]
 
 #define DISPLAY_MEAS_RES  ((uint8_t) 1)
 #define NOT_DISPLAT_RES		((uint8_t) 1)

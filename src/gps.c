@@ -110,19 +110,7 @@ void gpsUartInit(void)
 	LL_GPIO_SetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
 	LL_GPIO_SetOutputPin(GPS_PWR_PORT , GPS_PWR_PIN);
 	
-	HAL_Delay(10);
-
-//	HAL_Delay(1);
-//	LL_GPIO_ResetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
-//	HAL_Delay(1);
-//	LL_GPIO_SetOutputPin(GPS_NRESET_PORT , GPS_NRESET_PIN);
-	
-//	HAL_Delay(2000);
-//	gpsUartWriteS("$PMTK220,100*2F\r\n");
-//	gpsUartWriteS("$PMTK251,38400*27F\r\n");
-	
 	__HAL_UART_ENABLE_IT(&gps_uart , UART_IT_RXNE);
-	
 }
 
 

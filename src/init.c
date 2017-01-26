@@ -72,11 +72,11 @@ void init(void)
 	
 	pwrInit();
 	
-	f_mount(&FS, "SD:", 1);
+	//f_mount(&FS, "SD:", 1);
 	
 	gpsUartInit();
 	
-	bmi160Init();
+	//bmi160Init();
 	
 	//init_timers();
 	
@@ -96,10 +96,10 @@ void init(void)
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 	
 	sprintf(print_buf , "\r\n-->System Start! Compilation Time: %s" , __TIME__);
-	saveLog(print_buf);
+	//saveLog(print_buf);
 	
-	f_mount(NULL , "SD:", 1);
-	SD_DeInit();
+	//f_mount(NULL , "SD:", 1);
+	//SD_DeInit();
 }
 
 /** System Clock Configuration
